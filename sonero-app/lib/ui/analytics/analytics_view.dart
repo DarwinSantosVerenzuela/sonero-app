@@ -187,7 +187,7 @@ class _AnalyticsViewState extends State<AnalyticsView> with SingleTickerProvider
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('🎯 Sesión de Enfoque Concluida', textAlign: TextAlign.center),
+        title: const Text('Sesión de Enfoque Concluida', textAlign: TextAlign.center),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -315,6 +315,7 @@ class _AnalyticsViewState extends State<AnalyticsView> with SingleTickerProvider
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
+    final isMobile = MediaQuery.of(context).size.width < 600;
 
     if (_isLoading) {
       return Scaffold(
@@ -341,18 +342,33 @@ class _AnalyticsViewState extends State<AnalyticsView> with SingleTickerProvider
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text('Música Inteligente & Productividad', style: TextStyle(fontWeight: FontWeight.bold)),
+        titleSpacing: 24,
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Música Inteligente', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            Text('Analítica & Productividad', style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w400)),
+          ],
+        ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Recargar Datos',
-            onPressed: _loadData,
+          Padding(
+            padding: const EdgeInsets.only(right: 20),
+            child: IconButton(
+              icon: const Icon(Icons.refresh_rounded, size: 20),
+              tooltip: 'Recargar Datos',
+              onPressed: _loadData,
+              style: IconButton.styleFrom(
+                shape: const CircleBorder(),
+                backgroundColor: Colors.transparent,
+                side: BorderSide.none,
+              ),
+            ),
           ),
         ],
       ),
       body: SingleChildScrollView(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+          padding: EdgeInsets.symmetric(horizontal: isMobile ? 16.0 : 24.0, vertical: 12.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -383,73 +399,76 @@ class _AnalyticsViewState extends State<AnalyticsView> with SingleTickerProvider
                 
               Text(
                 'Tus Hábitos Semanales',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: context.colors.textPrimary),
+                style: TextStyle(fontSize: isMobile ? 18 : 22, fontWeight: FontWeight.bold, color: context.colors.textPrimary),
               ).animate().fadeIn(duration: 300.ms),
               const SizedBox(height: 16),
               
               // ── Stat Cards ─────────────────────────────────────────────────
-              Row(
-                children: [
-                  _buildStatCard(
-                    context, 
-                    'Horas de enfoque', 
-                    '${_totalHours.toStringAsFixed(1)} h', 
-                    Icons.timer, 
-                    Theme.of(context).colorScheme.primary
-                  ),
-                  const SizedBox(width: 16),
-                  _buildStatCard(
-                    context, 
-                    'Completadas', 
-                    '$_completedCount', 
-                    Icons.check_circle_outline, 
-                    context.colors.success
-                  ),
-                  const SizedBox(width: 16),
-                  _buildStatCard(
-                    context, 
-                    'Música Escuchada', 
-                    '$_musicCount', 
-                    Icons.music_note, 
-                    Colors.orange
-                  ),
-                ],
-              ).animate().fade(duration: 400.ms).slideX(begin: 0.1, end: 0),
+              if (isMobile)
+                Column(
+                  children: [
+                    _buildStatCardMobile(context, 'Horas de enfoque', '${_totalHours.toStringAsFixed(1)} h', Icons.timer, Theme.of(context).colorScheme.primary),
+                    const SizedBox(height: 10),
+                    _buildStatCardMobile(context, 'Completadas', '$_completedCount', Icons.check_circle_outline, context.colors.success),
+                    const SizedBox(height: 10),
+                    _buildStatCardMobile(context, 'Música Escuchada', '$_musicCount', Icons.music_note, Colors.orange),
+                  ],
+                ).animate().fade(duration: 400.ms).slideX(begin: 0.1, end: 0)
+              else
+                Row(
+                  children: [
+                    _buildStatCard(context, 'Horas de enfoque', '${_totalHours.toStringAsFixed(1)} h', Icons.timer, Theme.of(context).colorScheme.primary),
+                    const SizedBox(width: 16),
+                    _buildStatCard(context, 'Completadas', '$_completedCount', Icons.check_circle_outline, context.colors.success),
+                    const SizedBox(width: 16),
+                    _buildStatCard(context, 'Música Escuchada', '$_musicCount', Icons.music_note, Colors.orange),
+                  ],
+                ).animate().fade(duration: 400.ms).slideX(begin: 0.1, end: 0),
               
               const SizedBox(height: 32),
               
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Left Column: Focus Session & BPM
-                  Expanded(
-                    flex: 5,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Focus Session control card
-                        _buildFocusSessionCard(),
-                        const SizedBox(height: 24),
-                        // BPM analysis card
-                        _buildBpmAnalysisCard(rangeName, optimalRange, baroqueRate, technoRate),
-                      ],
+              if (isMobile)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildFocusSessionCard(),
+                    const SizedBox(height: 16),
+                    _buildMoodCircumplexCard(focusValence, focusEnergy, moodDescription, moodQuadrant),
+                    const SizedBox(height: 16),
+                    _buildBpmAnalysisCard(rangeName, optimalRange, baroqueRate, technoRate),
+                    const SizedBox(height: 16),
+                    _buildIsoPrincipleCard(),
+                  ],
+                )
+              else
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 5,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildFocusSessionCard(),
+                          const SizedBox(height: 24),
+                          _buildBpmAnalysisCard(rangeName, optimalRange, baroqueRate, technoRate),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 24),
-                  // Right Column: Russell Model mood tracking & Iso principle
-                  Expanded(
-                    flex: 5,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildMoodCircumplexCard(focusValence, focusEnergy, moodDescription, moodQuadrant),
-                        const SizedBox(height: 24),
-                        _buildIsoPrincipleCard(),
-                      ],
+                    const SizedBox(width: 24),
+                    Expanded(
+                      flex: 5,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildMoodCircumplexCard(focusValence, focusEnergy, moodDescription, moodQuadrant),
+                          const SizedBox(height: 24),
+                          _buildIsoPrincipleCard(),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
               
               const SizedBox(height: 32),
               
@@ -514,6 +533,37 @@ class _AnalyticsViewState extends State<AnalyticsView> with SingleTickerProvider
     );
   }
 
+  Widget _buildStatCardMobile(BuildContext context, String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: context.colors.surfaceAlt,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: context.colors.border.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: color.withOpacity(0.1),
+            radius: 20,
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: TextStyle(fontSize: 11, color: context.colors.textSecondary)),
+                const SizedBox(height: 2),
+                Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: context.colors.textPrimary)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildFocusSessionCard() {
     return Card(
       child: Padding(
@@ -525,7 +575,7 @@ class _AnalyticsViewState extends State<AnalyticsView> with SingleTickerProvider
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  '🎯 Sesión de Enfoque',
+                  'Sesión de Enfoque',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 if (_isFocusSessionActive)
@@ -574,8 +624,7 @@ class _AnalyticsViewState extends State<AnalyticsView> with SingleTickerProvider
               ),
             SizedBox(
               width: double.infinity,
-              height: 48,
-              child: _isEndingSession
+            child: _isEndingSession
                   ? const Center(child: CircularProgressIndicator())
                   : ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
@@ -601,40 +650,55 @@ class _AnalyticsViewState extends State<AnalyticsView> with SingleTickerProvider
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              '⚡ Filtro de BPM Óptimo',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
             Row(
               children: [
-                Expanded(
+                Icon(Icons.bolt_rounded, size: 24, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 8),
+                const Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        rangeName,
-                        style: TextStyle(
-                          fontSize: 16, 
-                          fontWeight: FontWeight.bold, 
-                          color: Theme.of(context).colorScheme.primary
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Rango ideal para reducir tu tasa de saltos (skips).',
-                        style: TextStyle(color: context.colors.textSecondary, fontSize: 12),
-                      ),
+                      Text('Ritmo Ideal para Ti', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      Text('BPM que menos saltas', style: TextStyle(fontSize: 11, color: Colors.grey)),
                     ],
                   ),
                 ),
               ],
             ),
-            const Divider(height: 32),
-            const Text(
-              'Tasas de salto por género (Histórico)',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.15)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.speed, color: Theme.of(context).colorScheme.primary, size: 24),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          rangeName,
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Las canciones en este rango de BPM son las que más disfrutas sin saltarlas.',
+                          style: TextStyle(color: context.colors.textSecondary, fontSize: 11),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
+            const Divider(height: 32),
+            const Text('Comparación de saltos por género:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             _buildBpmRateRow('Barroco/Lo-Fi (60-90 BPM)', baroqueRate),
             const SizedBox(height: 8),
@@ -740,38 +804,75 @@ class _AnalyticsViewState extends State<AnalyticsView> with SingleTickerProvider
   }
 
   Widget _buildMoodCircumplexCard(double valence, double energy, String desc, String quad) {
+    final accent = Theme.of(context).colorScheme.primary;
+    final isFallback = desc.toLowerCase().contains('fallback');
+    
+    IconData moodIcon;
+    String moodSimple;
+    if (energy > 0.5 && valence > 0.5) {
+      moodIcon = Icons.sentiment_very_satisfied_rounded; moodSimple = 'Alegre y Activo';
+    } else if (energy > 0.5 && valence <= 0.5) {
+      moodIcon = Icons.sentiment_dissatisfied_rounded; moodSimple = 'Tenso o Ansioso';
+    } else if (energy <= 0.5 && valence > 0.5) {
+      moodIcon = Icons.sentiment_satisfied_rounded; moodSimple = 'Calmado y Relajado';
+    } else {
+      moodIcon = Icons.sentiment_very_dissatisfied_rounded; moodSimple = 'Triste o Melancólico';
+    }
+    
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              '🧠 Estado de Ánimo (Russell EA)',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Últimos 45 minutos de escucha ponderados:',
-              style: TextStyle(color: context.colors.textSecondary, fontSize: 12),
-            ),
-            const SizedBox(height: 4),
             Row(
               children: [
-                Text(
-                  desc,
-                  style: TextStyle(
-                    fontSize: 16, 
-                    fontWeight: FontWeight.bold, 
-                    color: Theme.of(context).colorScheme.primary
+                Icon(Icons.psychology_rounded, size: 24, color: accent),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Tu Estado de Ánimo', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      Text('Basado en lo que escuchas', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                    ],
                   ),
                 ),
-                Text(' ($quad)', style: TextStyle(color: context.colors.textSecondary, fontSize: 12)),
               ],
             ),
-            const SizedBox(height: 20),
-            
-            // Russell Circumplex Plot Representation
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: accent.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: accent.withOpacity(0.15)),
+              ),
+              child: Row(
+                children: [
+                  Icon(moodIcon, size: 32, color: accent),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isFallback ? 'Sin datos suficientes' : moodSimple,
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: context.colors.textPrimary),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          isFallback ? 'Escucha música por 45 min para detectar tu estado' : 'Según tus últimos 45 min de escucha',
+                          style: TextStyle(fontSize: 11, color: context.colors.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
             Center(
               child: Container(
                 width: 200, height: 200,
@@ -782,33 +883,23 @@ class _AnalyticsViewState extends State<AnalyticsView> with SingleTickerProvider
                 ),
                 child: Stack(
                   children: [
-                    // Axis lines
-                    Center(child: Container(width: double.infinity, height: 1, color: context.colors.border.withOpacity(0.5))),
-                    Center(child: Container(width: 1, height: double.infinity, color: context.colors.border.withOpacity(0.5))),
-                    
-                    // Grid Labels
-                    Positioned(top: 8, left: 0, right: 0, child: Text('ACTIVACIÓN / ENERGÍA', textAlign: TextAlign.center, style: TextStyle(fontSize: 8, color: context.colors.textSecondary, fontWeight: FontWeight.bold))),
-                    Positioned(bottom: 8, left: 0, right: 0, child: Text('DESACTIVACIÓN', textAlign: TextAlign.center, style: TextStyle(fontSize: 8, color: context.colors.textSecondary, fontWeight: FontWeight.bold))),
-                    Positioned(left: 8, top: 90, child: Text('VALENCIA -', style: TextStyle(fontSize: 8, color: context.colors.textSecondary, fontWeight: FontWeight.bold))),
-                    Positioned(right: 8, top: 90, child: Text('VALENCIA +', style: TextStyle(fontSize: 8, color: context.colors.textSecondary, fontWeight: FontWeight.bold))),
-                    
-                    // User Mood Dot Locator (valence: X, energy: Y)
-                    // Scale values (0-1) to (0-200 pixels)
+                    Positioned(top: 20, right: 16, child: Icon(Icons.sentiment_very_satisfied_rounded, size: 16, color: context.colors.textSecondary.withOpacity(0.2))),
+                    Positioned(top: 20, left: 16, child: Icon(Icons.sentiment_dissatisfied_rounded, size: 16, color: context.colors.textSecondary.withOpacity(0.2))),
+                    Positioned(bottom: 20, right: 16, child: Icon(Icons.sentiment_satisfied_rounded, size: 16, color: context.colors.textSecondary.withOpacity(0.2))),
+                    Positioned(bottom: 20, left: 16, child: Icon(Icons.sentiment_very_dissatisfied_rounded, size: 16, color: context.colors.textSecondary.withOpacity(0.2))),
+                    Center(child: Container(width: double.infinity, height: 1, color: context.colors.border.withOpacity(0.3))),
+                    Center(child: Container(width: 1, height: double.infinity, color: context.colors.border.withOpacity(0.3))),
+                    Positioned(top: 6, left: 0, right: 0, child: Text('ENERGÍA +', textAlign: TextAlign.center, style: TextStyle(fontSize: 7, color: context.colors.textSecondary.withOpacity(0.6), fontWeight: FontWeight.bold))),
+                    Positioned(bottom: 6, left: 0, right: 0, child: Text('ENERGÍA −', textAlign: TextAlign.center, style: TextStyle(fontSize: 7, color: context.colors.textSecondary.withOpacity(0.6), fontWeight: FontWeight.bold))),
                     Positioned(
                       left: (valence * 200).clamp(10, 190) - 8,
                       bottom: (energy * 200).clamp(10, 190) - 8,
                       child: Container(
                         width: 16, height: 16,
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primary,
+                          color: accent,
                           shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Theme.of(context).colorScheme.primary.withOpacity(0.6),
-                              blurRadius: 10,
-                              spreadRadius: 2
-                            )
-                          ]
+                          boxShadow: [BoxShadow(color: accent.withOpacity(0.5), blurRadius: 8, spreadRadius: 1)]
                         ),
                       ).animate(onPlay: (controller) => controller.repeat(reverse: true))
                        .scale(begin: const Offset(1, 1), end: const Offset(1.2, 1.2), duration: 800.ms),
@@ -817,6 +908,12 @@ class _AnalyticsViewState extends State<AnalyticsView> with SingleTickerProvider
                 ),
               ),
             ),
+            const SizedBox(height: 8),
+            Center(child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.place_rounded, size: 12, color: context.colors.textSecondary),
+              const SizedBox(width: 4),
+              Text('Tu punto indica dónde estás emocionalmente', style: TextStyle(fontSize: 10, color: context.colors.textSecondary)),
+            ])),
           ],
         ),
       ),
@@ -833,25 +930,52 @@ class _AnalyticsViewState extends State<AnalyticsView> with SingleTickerProvider
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  '🎶 Ecualización Emocional',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                TextButton.icon(
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    minimumSize: Size.zero
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Playlist Relajante',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Genera una cola que te lleva de tu estado actual a la calma',
+                        style: TextStyle(fontSize: 11, color: Colors.grey),
+                      ),
+                    ],
                   ),
-                  icon: const Icon(Icons.psychology_outlined, size: 16),
-                  label: const Text('Calcular Cola Iso', style: TextStyle(fontSize: 12)),
+                ),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                  ),
+                  icon: const Icon(Icons.auto_awesome, size: 16),
+                  label: const Text('Generar', style: TextStyle(fontSize: 12)),
                   onPressed: _generateIsoQueue,
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            Text(
-              'Aplica el principio ISO: inicia con música en tu estado actual y gradualmente transiciona hacia la Calma.',
-              style: TextStyle(color: context.colors.textSecondary, fontSize: 13),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: context.colors.bg.withOpacity(0.4),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, size: 14, color: context.colors.textSecondary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '¿Cómo funciona? Selecciona 5 canciones de tu biblioteca que gradualmente bajan la energía, ayudándote a relajarte.',
+                      style: TextStyle(color: context.colors.textSecondary, fontSize: 11, height: 1.4),
+                    ),
+                  ),
+                ],
+              ),
             ),
             
             if (_isoQueue.isNotEmpty) ...[
@@ -926,7 +1050,7 @@ class _AnalyticsViewState extends State<AnalyticsView> with SingleTickerProvider
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        '🔑 Configurar Clave de Gemini',
+                        'Configurar Clave de Gemini',
                         style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 8),
@@ -966,7 +1090,7 @@ class _AnalyticsViewState extends State<AnalyticsView> with SingleTickerProvider
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      '📈 Reporte Semanal de Productividad Musical',
+                      'Reporte Semanal de Productividad Musical',
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 4),
@@ -1014,72 +1138,208 @@ class _AnalyticsViewState extends State<AnalyticsView> with SingleTickerProvider
   List<Widget> _renderMarkdownToWidgets(String markdown) {
     final List<Widget> widgets = [];
     final lines = markdown.split('\n');
+    final accent = Theme.of(context).colorScheme.primary;
+    
+    // Collect table rows for grouped rendering
+    List<List<String>> tableBuffer = [];
+    bool inTable = false;
+    
+    void flushTable() {
+      if (tableBuffer.isEmpty) return;
+      widgets.add(_buildStyledTable(tableBuffer));
+      tableBuffer = [];
+      inTable = false;
+    }
     
     for (var line in lines) {
       final trimmed = line.trim();
+      
+      // Skip empty lines
       if (trimmed.isEmpty) {
-        widgets.add(const SizedBox(height: 8));
+        flushTable();
+        widgets.add(const SizedBox(height: 6));
         continue;
       }
       
-      // Headers
-      if (trimmed.startsWith('# ')) {
+      // Skip horizontal rules
+      if (trimmed == '---' || trimmed == '***' || trimmed == '___') {
+        flushTable();
         widgets.add(Padding(
-          padding: const EdgeInsets.only(top: 16.0, bottom: 8.0),
-          child: Text(
-            trimmed.substring(2), 
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)
-          ),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Divider(color: context.colors.border.withOpacity(0.3), thickness: 1),
         ));
-      } else if (trimmed.startsWith('## ')) {
-        widgets.add(Padding(
-          padding: const EdgeInsets.only(top: 14.0, bottom: 6.0),
-          child: Text(
-            trimmed.substring(3), 
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)
+        continue;
+      }
+      
+      // Table delimiter rows (|---|---|)
+      if (trimmed.startsWith('|') && trimmed.contains('---')) {
+        inTable = true;
+        continue;
+      }
+      
+      // Table rows
+      if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+        final cells = trimmed.split('|').map((c) => c.trim()).where((c) => c.isNotEmpty).toList();
+        if (cells.isNotEmpty && !cells.any((c) => RegExp(r'^:?-+:?$').hasMatch(c))) {
+          tableBuffer.add(cells);
+          inTable = true;
+          continue;
+        }
+        continue;
+      }
+      
+      // If we were in a table and hit a non-table line, flush
+      if (inTable) flushTable();
+      
+      // H1 Headers — main title with gradient accent bar
+      if (trimmed.startsWith('# ') && !trimmed.startsWith('## ')) {
+        final text = trimmed.substring(2).replaceAll('**', '');
+        widgets.add(Container(
+          margin: const EdgeInsets.only(top: 20, bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [accent.withOpacity(0.15), accent.withOpacity(0.05)],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: accent.withOpacity(0.2)),
           ),
-        ));
-      } else if (trimmed.startsWith('### ')) {
-        widgets.add(Padding(
-          padding: const EdgeInsets.only(top: 12.0, bottom: 4.0),
-          child: Text(
-            trimmed.substring(4), 
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white70)
-          ),
-        ));
-      } 
-      // Bullet points
-      else if (trimmed.startsWith('* ') || trimmed.startsWith('- ')) {
-        widgets.add(Padding(
-          padding: const EdgeInsets.only(left: 12.0, bottom: 4.0),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('• ', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 16, fontWeight: FontWeight.bold)),
+              Container(
+                width: 4,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: accent,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  trimmed.substring(2), 
-                  style: TextStyle(color: context.colors.textPrimary, fontSize: 13, height: 1.4)
+                  text,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: context.colors.textPrimary,
+                    letterSpacing: -0.3,
+                  ),
                 ),
               ),
             ],
           ),
         ));
-      } 
-      // Ordered points
+      }
+      // H2 Headers — section titles with icon
+      else if (trimmed.startsWith('## ')) {
+        final text = trimmed.substring(3).replaceAll('**', '');
+        widgets.add(Container(
+          margin: const EdgeInsets.only(top: 20, bottom: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: context.colors.surfaceAlt,
+            borderRadius: BorderRadius.circular(10),
+            border: Border(
+              left: BorderSide(color: accent, width: 3),
+            ),
+          ),
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: accent,
+              letterSpacing: -0.2,
+            ),
+          ),
+        ));
+      }
+      // H3 Headers
+      else if (trimmed.startsWith('### ')) {
+        final text = trimmed.substring(4).replaceAll('**', '');
+        widgets.add(Padding(
+          padding: const EdgeInsets.only(top: 14, bottom: 6),
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: context.colors.textPrimary.withOpacity(0.85),
+            ),
+          ),
+        ));
+      }
+      // Bullet points with accent dot
+      else if (trimmed.startsWith('* ') || trimmed.startsWith('- ')) {
+        final text = trimmed.substring(2).replaceAll('**', '');
+        widgets.add(Padding(
+          padding: const EdgeInsets.only(left: 8, bottom: 6),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 7),
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: accent,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  text,
+                  style: TextStyle(
+                    color: context.colors.textPrimary.withOpacity(0.9),
+                    fontSize: 13,
+                    height: 1.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ));
+      }
+      // Ordered list
       else if (RegExp(r'^\d+\.\s').hasMatch(trimmed)) {
         final match = RegExp(r'^(\d+)\.\s(.*)$').firstMatch(trimmed);
         if (match != null) {
+          final num = match.group(1)!;
+          final text = (match.group(2) ?? '').replaceAll('**', '');
           widgets.add(Padding(
-            padding: const EdgeInsets.only(left: 12.0, bottom: 4.0),
+            padding: const EdgeInsets.only(left: 8, bottom: 6),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('${match.group(1)}. ', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold)),
+                Container(
+                  width: 22,
+                  height: 22,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: accent.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    num,
+                    style: TextStyle(
+                      color: accent,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    match.group(2) ?? '', 
-                    style: TextStyle(color: context.colors.textPrimary, fontSize: 13, height: 1.4)
+                    text,
+                    style: TextStyle(
+                      color: context.colors.textPrimary.withOpacity(0.9),
+                      fontSize: 13,
+                      height: 1.5,
+                    ),
                   ),
                 ),
               ],
@@ -1087,43 +1347,107 @@ class _AnalyticsViewState extends State<AnalyticsView> with SingleTickerProvider
           ));
         }
       }
-      // Table rows (simple parser)
-      else if (trimmed.startsWith('|') && !trimmed.contains('---')) {
-        final cells = trimmed.split('|').map((c) => c.trim()).where((c) => c.isNotEmpty).toList();
-        // Skip markdown table delimiters
-        if (cells.isNotEmpty && cells.any((c) => c.contains('--'))) continue;
-        
-        widgets.add(Container(
-          margin: const EdgeInsets.symmetric(vertical: 2),
-          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-          decoration: BoxDecoration(
-            color: context.colors.bg.withOpacity(0.3),
-            borderRadius: BorderRadius.circular(4)
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: cells.map((cell) => Text(
-              cell, 
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)
-            )).toList(),
-          ),
-        ));
-      }
       // Normal paragraph
       else {
-        // Remove bold delimiters ** for display
         final cleanText = trimmed.replaceAll('**', '');
         widgets.add(Padding(
-          padding: const EdgeInsets.only(bottom: 6.0),
+          padding: const EdgeInsets.only(bottom: 6),
           child: Text(
-            cleanText, 
-            style: TextStyle(color: context.colors.textSecondary, fontSize: 13, height: 1.4)
+            cleanText,
+            style: TextStyle(
+              color: context.colors.textSecondary,
+              fontSize: 13,
+              height: 1.5,
+            ),
           ),
         ));
       }
     }
     
+    // Flush any remaining table
+    flushTable();
+    
     return widgets;
+  }
+
+  Widget _buildStyledTable(List<List<String>> rows) {
+    if (rows.isEmpty) return const SizedBox.shrink();
+    final accent = Theme.of(context).colorScheme.primary;
+    
+    final hasHeader = rows.length > 1;
+    final headerRow = hasHeader ? rows.first : null;
+    final dataRows = hasHeader ? rows.sublist(1) : rows;
+    
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: context.colors.border.withOpacity(0.3)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          // Header row
+          if (headerRow != null)
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+              decoration: BoxDecoration(
+                color: accent.withOpacity(0.1),
+              ),
+              child: Row(
+                children: headerRow.asMap().entries.map((entry) {
+                  final isFirst = entry.key == 0;
+                  final isLast = entry.key == headerRow.length - 1;
+                  return Expanded(
+                    flex: isFirst ? 3 : 2,
+                    child: Text(
+                      entry.value.replaceAll('**', ''),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: accent,
+                        letterSpacing: 0.5,
+                      ),
+                      textAlign: isLast ? TextAlign.end : TextAlign.start,
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          // Data rows
+          ...dataRows.asMap().entries.map((rowEntry) {
+            final isEven = rowEntry.key % 2 == 0;
+            final cells = rowEntry.value;
+            return Container(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 14),
+              decoration: BoxDecoration(
+                color: isEven ? Colors.transparent : context.colors.surfaceAlt.withOpacity(0.4),
+              ),
+              child: Row(
+                children: cells.asMap().entries.map((entry) {
+                  final isFirst = entry.key == 0;
+                  final isLast = entry.key == cells.length - 1;
+                  return Expanded(
+                    flex: isFirst ? 3 : 2,
+                    child: Text(
+                      entry.value.replaceAll('**', ''),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: isFirst ? FontWeight.w600 : FontWeight.w400,
+                        color: isFirst 
+                            ? context.colors.textPrimary 
+                            : context.colors.textSecondary,
+                      ),
+                      textAlign: isLast ? TextAlign.end : TextAlign.start,
+                    ),
+                  );
+                }).toList(),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
   }
 
   Widget _buildSyncHeader(BuildContext context, SettingsProvider settings) {

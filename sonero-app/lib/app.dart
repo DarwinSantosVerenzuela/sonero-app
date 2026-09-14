@@ -16,7 +16,7 @@ import 'ui/app_shell.dart';
 import 'ui/theme.dart';
 import 'ui/video_download_dialog.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:sonero_app/l10n/app_localizations.dart';
 
 class ShazamApp extends StatefulWidget {
   const ShazamApp({super.key});

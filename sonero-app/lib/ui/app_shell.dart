@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:sonero_app/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -20,12 +21,13 @@ import 'theme.dart';
 import 'video_download_dialog.dart';
 import 'downloads/downloads_page.dart';
 import 'search/search_view.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'setup_modal.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path/path.dart' as p;
 import 'wifi_transfer/wifi_transfer_page.dart';
 import '../services/background_listen_service.dart';
+import '../providers/downloads_provider.dart';
+import 'settings/settings_page.dart' as settings_page;
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -358,6 +360,14 @@ class _AppShellState extends State<AppShell> {
     );
   }
 
+  void _openMobileSettings(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const SettingsPageRoute(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final player       = context.watch<PlayerProvider>();
@@ -412,151 +422,201 @@ class _AppShellState extends State<AppShell> {
       children: [
         Scaffold(
           backgroundColor: context.colors.bg,
-          drawer: isMobile
-              ? Drawer(
-                  backgroundColor: context.colors.bg,
-                  child: SidebarWidget(
-                    currentIndex: _currentViewIndex,
-                    isCollapsed: false,
-                    onToggle: () => Navigator.pop(context),
-                    onNavigate: (index) {
-                      setState(() => _currentViewIndex = index);
-                      Navigator.pop(context); // Close the drawer
-                    },
-                  ),
-                )
-              : null,
-          appBar: isMobile
-              ? AppBar(
-                  backgroundColor: context.colors.bg,
-                  elevation: 0,
-                  automaticallyImplyLeading: false,
-                  titleSpacing: 12,
-                  title: Row(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          height: 38,
-                          decoration: BoxDecoration(
-                            color: context.colors.surfaceAlt,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: ValueListenableBuilder<TextEditingValue>(
-                            valueListenable: _searchController,
-                            builder: (context, value, _) {
-                              return TextField(
-                                controller: _searchController,
-                                style: TextStyle(
-                                  color: context.colors.textPrimary,
-                                  fontSize: 14,
-                                ),
-                                decoration: InputDecoration(
-                                  hintText: 'Buscar música...',
-                                  hintStyle: TextStyle(
-                                    color: context.colors.textSecondary.withOpacity(0.5),
-                                    fontSize: 13,
-                                  ),
-                                  prefixIcon: Icon(
-                                    Icons.search_rounded,
-                                    color: context.colors.textSecondary.withOpacity(0.7),
-                                    size: 18,
-                                  ),
-                                  suffixIcon: value.text.isNotEmpty
-                                      ? IconButton(
-                                          icon: Icon(Icons.close_rounded, color: context.colors.textSecondary, size: 16),
-                                          padding: EdgeInsets.zero,
-                                          constraints: const BoxConstraints(),
-                                          onPressed: () => _searchController.clear(),
-                                        )
-                                      : null,
-                                  border: InputBorder.none,
-                                  contentPadding: const EdgeInsets.symmetric(vertical: 9),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Builder(
-                        builder: (context) => IconButton(
-                          icon: Icon(
-                            Icons.menu_rounded,
-                            color: context.colors.textSecondary,
-                            size: 20,
-                          ),
-                          onPressed: () {
-                            Scaffold.of(context).openDrawer();
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              : null,
           body: Column(
             children: [
               Expanded(
-                child: Stack(
+                child: Row(
                   children: [
-                    // 1. Main content (offset for collapsed sidebar icon strip)
-                    Positioned.fill(
-                      left: isMobile ? 0 : (isVideoMode ? 0 : 64),
-                      child: currentView,
+                    // Sidebar (always in flow, animates width)
+                    if (!isMobile && !isVideoMode)
+                      SidebarWidget(
+                        currentIndex: _currentViewIndex,
+                        isCollapsed: !isSidebarOpen,
+                        onToggle: () => player.toggleSidebar(),
+                        onNavigate: (index) =>
+                            setState(() => _currentViewIndex = index),
+                      ),
+
+                    // Main content (takes remaining space)
+                    Expanded(
+                      child: Stack(
+                        children: [
+                          // Main view
+                          Positioned.fill(
+                            child: currentView,
+                          ),
+
+                          // Netflix-style Video Overlay (full width)
+                          if (isVideoMode)
+                            const Positioned.fill(
+                              child: VideoOverlay(),
+                            ),
+                        ],
+                      ),
                     ),
-
-                    // 2. Collapsed sidebar icon strip (normal mode only)
-                    if (!isMobile && !isVideoMode && !isSidebarOpen)
-                      Positioned(
-                        left: 0, top: 0, bottom: 0,
-                        child: SidebarWidget(
-                          currentIndex: _currentViewIndex,
-                          isCollapsed: true,
-                          onToggle: () => player.toggleSidebar(),
-                          onNavigate: (index) =>
-                              setState(() => _currentViewIndex = index),
-                        ),
-                      ),
-
-                    // 3. Netflix-style Video Overlay (full width, under sidebar)
-                    if (isVideoMode)
-                      const Positioned.fill(
-                        child: VideoOverlay(),
-                      ),
-
-                    // 4. Dim barrier (full-width, renders BELOW the sidebar)
-                    if (!isMobile && isSidebarOpen)
-                      Positioned.fill(
-                        child: GestureDetector(
-                          behavior: HitTestBehavior.translucent,
-                          onTap: () => player.setSidebarVisible(false),
-                          child: Container(
-                            color: Colors.black.withOpacity(
-                                isVideoMode ? 0.55 : 0.30)),
-                        ),
-                      ),
-
-                    // 5. Expanded sidebar — renders on TOP of the dim overlay
-                    if (!isMobile && isSidebarOpen)
-                      Positioned(
-                        left: 0, top: 0, bottom: 0,
-                        child: SidebarWidget(
-                          currentIndex: _currentViewIndex,
-                          isCollapsed: false,
-                          onToggle: () => player.toggleSidebar(),
-                          onNavigate: (index) =>
-                              setState(() => _currentViewIndex = index),
-                        ),
-                      ),
                   ],
                 ),
               ),
               const MiniPlayer(),
+              // Add padding at bottom for mobile pill bar
+              if (isMobile) const SizedBox(height: 70),
             ],
           ),
         ),
         const ListenOverlay(),
+        // ── Floating Pill Bottom Nav (Mobile only) ───────────────────
+        if (isMobile)
+          Positioned(
+            left: 24,
+            right: 24,
+            bottom: MediaQuery.of(context).padding.bottom + 12,
+            child: Container(
+              height: 60,
+              decoration: BoxDecoration(
+                color: context.colors.surface.withOpacity(0.95),
+                borderRadius: BorderRadius.circular(30),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.15),
+                    blurRadius: 20,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+                border: Border.all(
+                  color: context.colors.border.withOpacity(0.15),
+                  width: 0.5,
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _MobilePillNavItem(
+                    icon: Icons.home_rounded,
+                    label: 'Inicio',
+                    isSelected: _currentViewIndex == 0,
+                    onTap: () => setState(() => _currentViewIndex = 0),
+                  ),
+                  _MobilePillNavItem(
+                    icon: Icons.library_music_rounded,
+                    label: 'Biblioteca',
+                    isSelected: _currentViewIndex == 1,
+                    onTap: () => setState(() => _currentViewIndex = 1),
+                  ),
+                  _MobilePillNavItem(
+                    icon: Icons.search_rounded,
+                    label: 'Buscar',
+                    isSelected: _currentViewIndex == 3,
+                    onTap: () => setState(() => _currentViewIndex = 3),
+                  ),
+                  _MobilePillNavItem(
+                    icon: Icons.download_rounded,
+                    label: 'Descargas',
+                    isSelected: _currentViewIndex == 4,
+                    onTap: () => setState(() => _currentViewIndex = 4),
+                    badgeCount: context.watch<DownloadsProvider>().activeJobsCount,
+                  ),
+                  _MobilePillNavItem(
+                    icon: Icons.settings_rounded,
+                    label: 'Ajustes',
+                    isSelected: false,
+                    onTap: () => _openMobileSettings(context),
+                  ),
+                ],
+              ),
+            ),
+          ),
       ],
+    );
+  }
+}
+
+class SettingsPageRoute extends StatelessWidget {
+  const SettingsPageRoute({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: context.colors.bg,
+      appBar: AppBar(
+        backgroundColor: context.colors.bg,
+        elevation: 0,
+        title: const Text('Ajustes'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: const settings_page.SettingsPage(),
+    );
+  }
+}
+
+class _MobilePillNavItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final int badgeCount;
+
+  const _MobilePillNavItem({
+    required this.icon,
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+    this.badgeCount = 0,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = Theme.of(context).colorScheme.primary;
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        width: 52,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(
+                  icon,
+                  size: 22,
+                  color: isSelected ? accent : context.colors.textSecondary.withOpacity(0.6),
+                ),
+                if (badgeCount > 0)
+                  Positioned(
+                    right: -6,
+                    top: -4,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: accent,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      constraints: const BoxConstraints(minWidth: 14, minHeight: 12),
+                      child: Text(
+                        '$badgeCount',
+                        style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w700),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                color: isSelected ? accent : context.colors.textSecondary.withOpacity(0.5),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

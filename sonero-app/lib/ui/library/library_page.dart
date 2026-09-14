@@ -530,14 +530,21 @@ class _PageHeader extends StatelessWidget {
     
     final isMobile = MediaQuery.of(context).size.width < 600;
 
-    final headerText = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        InkWell(
-          onTap: () => _showPlaylistSelectorBottomSheet(context),
-          borderRadius: BorderRadius.circular(8),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+    final headerText = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: context.colors.surfaceAlt,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: () => _showPlaylistSelectorBottomSheet(context),
+            borderRadius: BorderRadius.circular(8),
+            hoverColor: Colors.transparent,
+            splashColor: Colors.transparent,
+            highlightColor: Colors.transparent,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -561,16 +568,16 @@ class _PageHeader extends StatelessWidget {
               ],
             ),
           ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: TextStyle(
-            color: context.colors.textSecondary,
-            fontSize: 13,
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(
+              color: context.colors.textSecondary,
+              fontSize: 13,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
 
     final actions = Wrap(
@@ -584,60 +591,91 @@ class _PageHeader extends StatelessWidget {
         // Export CSV button (only for playlists, not library root)
         if (!playlist.isLibrary && allTracks.isNotEmpty && !isMobile)
           _ExportButton(playlist: playlist, tracks: allTracks, settings: settings),
-        // Multi-select Toggle Button
-        IconButton(
-          icon: Icon(isMultiSelectMode ? Icons.check_circle_rounded : Icons.check_circle_outline_rounded),
-          color: isMultiSelectMode ? Theme.of(context).colorScheme.primary : context.colors.textSecondary,
-          tooltip: 'Seleccionar por lotes',
-          onPressed: onToggleMultiSelect,
-        ),
-        // Sort button
-        PopupMenuButton<SortOption>(
-          icon: const Icon(Icons.sort_rounded),
-          color: context.colors.surfaceAlt,
-          tooltip: 'Ordenar',
-          initialValue: context.read<LibraryProvider>().sortOption,
-          onSelected: (option) {
-            context.read<LibraryProvider>().setSortOption(option);
-          },
-          itemBuilder: (ctx) => [
-            const PopupMenuItem(
-              value: SortOption.dateAdded,
-              child: Text('Más recientes'),
-            ),
-            const PopupMenuItem(
-              value: SortOption.titleAsc,
-              child: Text('Título (A-Z)'),
-            ),
-            const PopupMenuItem(
-              value: SortOption.titleDesc,
-              child: Text('Título (Z-A)'),
-            ),
-            const PopupMenuItem(
-              value: SortOption.artistAsc,
-              child: Text('Artista (A-Z)'),
-            ),
-            const PopupMenuItem(
-              value: SortOption.artistDesc,
-              child: Text('Artista (Z-A)'),
-            ),
-          ],
-        ),
-        // View Toggle Button
-        IconButton(
-          icon: Icon(isListView ? Icons.grid_view_rounded : Icons.list_rounded),
-          color: context.colors.textSecondary,
-          tooltip: isListView ? 'Vista de Cuadrícula' : 'Vista de Lista',
-          onPressed: onToggleView,
-        ),
-        // Refresh button
-        IconButton(
-          icon: const Icon(Icons.refresh_rounded),
-          color: context.colors.textSecondary,
-          tooltip: 'Actualizar',
-          onPressed: () {
-            context.read<LibraryProvider>().loadTracks(settings.api);
-          },
+        // Grouped icon toolbar
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          decoration: BoxDecoration(
+            color: context.colors.surfaceAlt,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Multi-select Toggle Button
+              IconButton(
+                icon: Icon(isMultiSelectMode ? Icons.check_circle_rounded : Icons.check_circle_outline_rounded, size: 19),
+                color: isMultiSelectMode ? Theme.of(context).colorScheme.primary : context.colors.textSecondary,
+                tooltip: 'Seleccionar por lotes',
+                onPressed: onToggleMultiSelect,
+                style: IconButton.styleFrom(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  backgroundColor: Colors.transparent,
+                  side: BorderSide.none,
+                ),
+              ),
+              Container(width: 1, height: 20, color: context.colors.border.withOpacity(0.3)),
+              // Sort button
+              PopupMenuButton<SortOption>(
+                icon: Icon(Icons.sort_rounded, size: 19, color: context.colors.textSecondary),
+                color: context.colors.surfaceAlt,
+                tooltip: 'Ordenar',
+                initialValue: context.read<LibraryProvider>().sortOption,
+                onSelected: (option) {
+                  context.read<LibraryProvider>().setSortOption(option);
+                },
+                itemBuilder: (ctx) => [
+                  const PopupMenuItem(
+                    value: SortOption.dateAdded,
+                    child: Text('Más recientes'),
+                  ),
+                  const PopupMenuItem(
+                    value: SortOption.titleAsc,
+                    child: Text('Título (A-Z)'),
+                  ),
+                  const PopupMenuItem(
+                    value: SortOption.titleDesc,
+                    child: Text('Título (Z-A)'),
+                  ),
+                  const PopupMenuItem(
+                    value: SortOption.artistAsc,
+                    child: Text('Artista (A-Z)'),
+                  ),
+                  const PopupMenuItem(
+                    value: SortOption.artistDesc,
+                    child: Text('Artista (Z-A)'),
+                  ),
+                ],
+              ),
+              Container(width: 1, height: 20, color: context.colors.border.withOpacity(0.3)),
+              // View Toggle Button
+              IconButton(
+                icon: Icon(isListView ? Icons.grid_view_rounded : Icons.list_rounded, size: 19),
+                color: context.colors.textSecondary,
+                tooltip: isListView ? 'Vista de Cuadrícula' : 'Vista de Lista',
+                onPressed: onToggleView,
+                style: IconButton.styleFrom(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  backgroundColor: Colors.transparent,
+                  side: BorderSide.none,
+                ),
+              ),
+              Container(width: 1, height: 20, color: context.colors.border.withOpacity(0.3)),
+              // Refresh button
+              IconButton(
+                icon: const Icon(Icons.refresh_rounded, size: 19),
+                color: context.colors.textSecondary,
+                tooltip: 'Actualizar',
+                onPressed: () {
+                  context.read<LibraryProvider>().loadTracks(settings.api);
+                },
+                style: IconButton.styleFrom(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  backgroundColor: Colors.transparent,
+                  side: BorderSide.none,
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -690,7 +728,7 @@ class _AutoFillButtonState extends State<_AutoFillButton> {
       style: OutlinedButton.styleFrom(
         foregroundColor: Theme.of(context).colorScheme.primary,
         side: BorderSide(color: Theme.of(context).colorScheme.primary.withOpacity(0.5)),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       ),
       onPressed: _isLoading ? null : () async {
@@ -741,7 +779,7 @@ class _ExportButton extends StatelessWidget {
       style: OutlinedButton.styleFrom(
         foregroundColor: Theme.of(context).colorScheme.secondary,
         side: BorderSide(color: Theme.of(context).colorScheme.secondary),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       ),
       onPressed: () async {

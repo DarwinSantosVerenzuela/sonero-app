@@ -168,23 +168,36 @@ class PlayerProvider extends ChangeNotifier {
     for (var t in queue) {
       String uri = t.filename;
       if (!uri.startsWith('http')) {
-        if (!p.isAbsolute(uri)) {
+        if (kIsWeb) {
+          // On web, stream from the backend API
+          final baseUrl = settings.api.baseUrl;
           if (_isVideoExt(t.filename)) {
             final cleanFilename = t.filename.startsWith('videos/')
                 ? t.filename.substring(7)
                 : t.filename;
-            uri = p.join(settings.videoFolder, cleanFilename);
-          } else if (t.playlist.isNotEmpty) {
-            uri = p.join(settings.musicFolder, t.playlist, t.filename);
+            uri = '$baseUrl/api/v1/downloads/videos/${Uri.encodeComponent(cleanFilename)}';
           } else {
-            uri = p.join(settings.musicFolder, t.filename);
+            uri = '$baseUrl/api/v1/downloads/${Uri.encodeComponent(t.filename)}';
           }
-        }
-        uri = p.normalize(uri);
-        if (t == track && !File(uri).existsSync()) {
-          debugPrint('File does not exist: $uri');
-          throw Exception(
-              'El archivo no existe en el disco: $uri\nVerifica tu "Directorio de Música" en Ajustes.');
+        } else {
+          if (!p.isAbsolute(uri)) {
+            if (_isVideoExt(t.filename)) {
+              final cleanFilename = t.filename.startsWith('videos/')
+                  ? t.filename.substring(7)
+                  : t.filename;
+              uri = p.join(settings.videoFolder, cleanFilename);
+            } else if (t.playlist.isNotEmpty) {
+              uri = p.join(settings.musicFolder, t.playlist, t.filename);
+            } else {
+              uri = p.join(settings.musicFolder, t.filename);
+            }
+          }
+          uri = p.normalize(uri);
+          if (t == track && !File(uri).existsSync()) {
+            debugPrint('File does not exist: $uri');
+            throw Exception(
+                'El archivo no existe en el disco: $uri\nVerifica tu "Directorio de Música" en Ajustes.');
+          }
         }
       }
       resolvedTracks.add(t);
