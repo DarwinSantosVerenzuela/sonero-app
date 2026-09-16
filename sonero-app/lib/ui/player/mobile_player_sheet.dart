@@ -6,6 +6,7 @@ import '../../providers/player_provider.dart';
 import '../theme.dart';
 import '../widgets/track_cover_image.dart';
 import 'lyrics_view.dart';
+import 'equalizer_view.dart';
 
 class MobileExpandedPlayer extends StatelessWidget {
   const MobileExpandedPlayer({super.key});
@@ -401,6 +402,20 @@ class MobileExpandedPlayer extends StatelessWidget {
                                       color: context.colors.textSecondary, fontSize: 12),
                                 ),
                               ),
+                            // Equalizer Button
+                            TextButton.icon(
+                              onPressed: () {
+                                Navigator.of(context).pop(); // Close sheet
+                                showEqualizerDialog(context);
+                              },
+                              icon: Icon(Icons.equalizer_rounded,
+                                  color: context.colors.textSecondary, size: 18),
+                              label: Text(
+                                'Ecualizador',
+                                style: TextStyle(
+                                    color: context.colors.textSecondary, fontSize: 12),
+                              ),
+                            ),
                             // Stop Button
                             TextButton.icon(
                               onPressed: () {

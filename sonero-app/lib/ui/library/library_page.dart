@@ -561,7 +561,7 @@ class _PageHeader extends StatelessWidget {
                 ),
                 const SizedBox(width: 6),
                 Icon(
-                  Icons.keyboard_arrow_down_rounded,
+                  Icons.add_rounded,
                   color: context.colors.textPrimary,
                   size: 24,
                 ),
@@ -683,11 +683,10 @@ class _PageHeader extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 12),
       child: isMobile
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          ? Row(
               children: [
-                headerText,
-                const SizedBox(height: 12),
+                Expanded(child: headerText),
+                const SizedBox(width: 8),
                 actions,
               ],
             )

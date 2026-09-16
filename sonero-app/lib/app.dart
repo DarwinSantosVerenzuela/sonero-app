@@ -11,6 +11,7 @@ import 'providers/settings_provider.dart';
 import 'providers/library_provider.dart';
 import 'providers/listen_provider.dart';
 import 'providers/player_provider.dart';
+import 'providers/equalizer_provider.dart';
 import 'providers/downloads_provider.dart';
 import 'ui/app_shell.dart';
 import 'ui/theme.dart';
@@ -31,6 +32,7 @@ class _ShazamAppState extends State<ShazamApp> with TrayListener, WindowListener
   final _listen    = ListenProvider();
   final _player    = PlayerProvider();
   final _downloads = DownloadsProvider();
+  final _equalizer  = EqualizerProvider();
   final _hotkeys   = HotkeyService();
   final _navigatorKey = GlobalKey<NavigatorState>();
   bool _initialized = false;
@@ -44,6 +46,7 @@ class _ShazamAppState extends State<ShazamApp> with TrayListener, WindowListener
   Future<void> _boot() async {
     await _settings.load();
     _downloads.startPolling(_settings.api);
+    _equalizer.setPlayer(_player.player);
 
     // Register global hotkeys (Windows desktop only)
     if (!kIsWeb && Platform.isWindows) {
@@ -193,6 +196,7 @@ class _ShazamAppState extends State<ShazamApp> with TrayListener, WindowListener
         ChangeNotifierProvider.value(value: _listen),
         ChangeNotifierProvider.value(value: _player),
         ChangeNotifierProvider.value(value: _downloads),
+        ChangeNotifierProvider.value(value: _equalizer),
         Provider.value(value: _hotkeys),
       ],
       child: Builder(

@@ -6,6 +6,7 @@ import '../theme.dart';
 import '../widgets/hover_scale.dart';
 import '../widgets/track_cover_image.dart';
 import 'lyrics_view.dart';
+import 'equalizer_view.dart';
 import 'mobile_player_sheet.dart';
 
 class MiniPlayer extends StatelessWidget {
@@ -450,6 +451,20 @@ class MiniPlayer extends StatelessWidget {
                               tooltip: 'Ver Letras',
                               onPressed: () => _showLyricsDialog(
                                   context, track.title, track.artist, track.filename),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(
+                                  minWidth: 36, minHeight: 36),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          HoverScale(
+                            scale: 1.15,
+                            child: IconButton(
+                              icon: Icon(Icons.equalizer_rounded,
+                                  color: context.colors.textSecondary,
+                                  size: 22),
+                              tooltip: 'Ecualizador',
+                              onPressed: () => showEqualizerDialog(context),
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(
                                   minWidth: 36, minHeight: 36),
