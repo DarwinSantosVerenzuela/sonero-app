@@ -30,16 +30,18 @@ class MobileExpandedPlayer extends StatelessWidget {
           // ── Background artwork blur ────────────────────────────────────────
           if (hasCover && getCoverImageProvider(track.coverUrl) != null)
             Positioned.fill(
-              child: ImageFiltered(
-                imageFilter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
-                child: Container(
-                  decoration: BoxDecoration(
-                    image: DecorationImage(
-                      image: getCoverImageProvider(track.coverUrl)!,
-                      fit: BoxFit.cover,
-                      colorFilter: ColorFilter.mode(
-                        Colors.black.withValues(alpha: 0.65),
-                        BlendMode.darken,
+              child: ClipRect(
+                child: ImageFiltered(
+                  imageFilter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      image: DecorationImage(
+                        image: getCoverImageProvider(track.coverUrl)!,
+                        fit: BoxFit.cover,
+                        colorFilter: ColorFilter.mode(
+                          Colors.black.withValues(alpha: 0.75),
+                          BlendMode.darken,
+                        ),
                       ),
                     ),
                   ),
@@ -320,9 +322,15 @@ class MobileExpandedPlayer extends StatelessWidget {
 
                 // ── Volume & Utilities Row ────────────────────────────────────
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    children: [
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Container(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+                    decoration: BoxDecoration(
+                      color: context.colors.surfaceAlt.withValues(alpha: 0.45),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      children: [
                         // Volume slider control
                         Row(
                           children: [
@@ -358,7 +366,7 @@ class MobileExpandedPlayer extends StatelessWidget {
                             // Lyrics Button
                             TextButton.icon(
                               onPressed: () {
-                                Navigator.of(context).pop(); // Close sheet
+                                Navigator.of(context).pop();
                                 _showLyricsDialog(
                                   context,
                                   track.title,
@@ -378,7 +386,7 @@ class MobileExpandedPlayer extends StatelessWidget {
                             if (player.isVideo)
                               TextButton.icon(
                                 onPressed: () {
-                                  Navigator.of(context).pop(); // Close sheet
+                                  Navigator.of(context).pop();
                                   player.setVideoMode(true);
                                 },
                                 icon: Icon(Icons.fullscreen_rounded,
@@ -392,7 +400,7 @@ class MobileExpandedPlayer extends StatelessWidget {
                             // Equalizer Button
                             TextButton.icon(
                               onPressed: () {
-                                Navigator.of(context).pop(); // Close sheet
+                                Navigator.of(context).pop();
                                 showEqualizerDialog(context);
                               },
                               icon: Icon(Icons.equalizer_rounded,
@@ -406,7 +414,7 @@ class MobileExpandedPlayer extends StatelessWidget {
                             // Stop Button
                             TextButton.icon(
                               onPressed: () {
-                                Navigator.of(context).pop(); // Close sheet
+                                Navigator.of(context).pop();
                                 player.stop();
                               },
                               icon: const Icon(Icons.stop_rounded,
@@ -419,6 +427,7 @@ class MobileExpandedPlayer extends StatelessWidget {
                           ],
                         ),
                       ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
