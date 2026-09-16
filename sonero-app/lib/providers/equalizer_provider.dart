@@ -40,16 +40,18 @@ extension EqPresetLabel on EqPreset {
 }
 
 /// Predefined band gain values (dB, range –12 … +12).
+/// Tuned aggressively so the difference is immediately noticeable,
+/// even on cheap earbuds.
 const Map<EqPreset, List<double>> kPresetValues = {
   EqPreset.flat:       [ 0,  0,  0,  0,  0,  0,  0,  0,  0,  0],
-  EqPreset.rock:       [ 5,  4,  3,  1, -1,  1,  3,  4,  5,  5],
-  EqPreset.pop:        [-1,  1,  3,  4,  3,  0, -1, -1,  1,  2],
-  EqPreset.jazz:       [ 4,  3,  1,  2, -1, -1,  0,  1,  3,  4],
-  EqPreset.classical:  [ 5,  4,  3,  2, -1, -1,  0,  2,  3,  4],
-  EqPreset.electronic: [ 5,  4,  1,  0, -2,  2,  1,  3,  4,  5],
-  EqPreset.bassBoost:  [ 6,  5,  4,  2,  0,  0,  0,  0,  0,  0],
-  EqPreset.vocal:      [-2, -1,  0,  2,  4,  4,  3,  1,  0, -1],
-  EqPreset.acoustic:   [ 4,  3,  2,  0, -1,  0,  1,  2,  3,  3],
+  EqPreset.rock:       [ 8,  6,  4,  2, -2,  2,  5,  7,  9, 10],
+  EqPreset.pop:        [-2,  2,  5,  7,  5,  1, -1,  0,  3,  5],
+  EqPreset.jazz:       [ 6,  5,  2,  3, -2, -1,  1,  3,  6,  8],
+  EqPreset.classical:  [ 8,  7,  5,  3, -2, -2,  1,  4,  6,  8],
+  EqPreset.electronic: [10,  8,  3,  0, -3,  3,  2,  6,  9, 11],
+  EqPreset.bassBoost:  [12, 10,  8,  5,  2,  0,  0,  0,  0,  0],
+  EqPreset.vocal:      [-4, -3,  0,  4,  8,  8,  6,  2,  0, -2],
+  EqPreset.acoustic:   [ 7,  5,  3,  1, -2,  1,  3,  5,  7,  6],
 };
 
 class EqualizerProvider extends ChangeNotifier {
@@ -68,14 +70,14 @@ class EqualizerProvider extends ChangeNotifier {
   bool _bassBoostEnabled = false;
   bool get bassBoostEnabled => _bassBoostEnabled;
 
-  double _bassBoostGain = 8.0; // dB
+  double _bassBoostGain = 12.0; // dB — starts punchy
   double get bassBoostGain => _bassBoostGain;
 
   // Channel mode
   ChannelMode _channelMode = ChannelMode.stereo;
   ChannelMode get channelMode => _channelMode;
 
-  double _extraStereoMultiplier = 2.5;
+  double _extraStereoMultiplier = 3.0;
   double get extraStereoMultiplier => _extraStereoMultiplier;
 
   // Loudness normalization
@@ -144,7 +146,7 @@ class EqualizerProvider extends ChangeNotifier {
   }
 
   void setBassBoostGain(double gain) {
-    _bassBoostGain = gain.clamp(0.0, 20.0);
+    _bassBoostGain = gain.clamp(0.0, 30.0);
     _applyFilters();
     _persist();
     notifyListeners();
@@ -182,9 +184,9 @@ class EqualizerProvider extends ChangeNotifier {
     _preset = EqPreset.flat;
     _bands = List.filled(10, 0.0);
     _bassBoostEnabled = false;
-    _bassBoostGain = 8.0;
+    _bassBoostGain = 12.0;
     _channelMode = ChannelMode.stereo;
-    _extraStereoMultiplier = 2.5;
+    _extraStereoMultiplier = 3.0;
     _loudnessEnabled = false;
     _balance = 0.0;
     _applyFilters();
@@ -218,9 +220,13 @@ class EqualizerProvider extends ChangeNotifier {
       filters.add(sb.toString());
     }
 
-    // 2. Bass boost
+    // 2. Bass boost — wider frequency range and steeper slope for PUNCH
     if (_bassBoostEnabled && _bassBoostGain > 0) {
-      filters.add('bass=g=${_bassBoostGain.toStringAsFixed(1)}:f=110:w=0.6');
+      // Two-stage bass: sub-bass (60Hz) + mid-bass (120Hz) for full impact
+      final subGain = (_bassBoostGain * 0.8).toStringAsFixed(1);
+      final midGain = (_bassBoostGain * 0.5).toStringAsFixed(1);
+      filters.add('bass=g=${_bassBoostGain.toStringAsFixed(1)}:f=80:w=0.7');
+      filters.add('bass=g=$midGain:f=150:w=0.5');
     }
 
     // 3. Channel mode
@@ -242,9 +248,13 @@ class EqualizerProvider extends ChangeNotifier {
       filters.add('pan=2c|c0=${left.toStringAsFixed(2)}*c0|c1=${right.toStringAsFixed(2)}*c1');
     }
 
-    // 5. Loudness normalization (EBU R128)
+    // 5. Loudness enhancement — aggressive normalization + dynamic compression
     if (_loudnessEnabled) {
-      filters.add('loudnorm=I=-14:TP=-1:LRA=11');
+      // EBU R128 normalization with louder target (-10 LUFS) + headroom
+      filters.add('loudnorm=I=-10:TP=-1:LRA=7');
+      // Dynamic range compression: makes quiet parts louder, loud parts controlled
+      // This is what makes cheap earbuds sound "full" and powerful
+      filters.add('acompressor=threshold=0.05:ratio=4:attack=5:release=100:makeup=6');
     }
 
     final chain = filters.join(',');

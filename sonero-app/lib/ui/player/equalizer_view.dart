@@ -60,7 +60,7 @@ class EqualizerView extends StatelessWidget {
                         label: '${eq.bassBoostGain.toStringAsFixed(0)} dB',
                         value: eq.bassBoostGain,
                         min: 0,
-                        max: 20,
+                        max: 30,
                         accent: accent,
                         colors: colors,
                         onChanged: eq.setBassBoostGain,
