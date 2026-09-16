@@ -551,24 +551,40 @@ void showEqualizerDialog(BuildContext context) {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      barrierColor: Colors.black54,
+      enableDrag: true,
+      useSafeArea: true,
+      transitionAnimationController: AnimationController(
+        vsync: Navigator.of(context),
+        duration: const Duration(milliseconds: 400),
+      ),
       builder: (_) => DraggableScrollableSheet(
-        initialChildSize: 0.85,
-        minChildSize: 0.5,
+        initialChildSize: 0.88,
+        minChildSize: 0.4,
         maxChildSize: 0.95,
+        snap: true,
+        snapSizes: const [0.4, 0.88, 0.95],
         builder: (ctx, scrollController) => Container(
           decoration: BoxDecoration(
             color: context.colors.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 20,
+                offset: const Offset(0, -4),
+              ),
+            ],
           ),
           child: Column(
             children: [
               // Drag handle
               Container(
-                margin: const EdgeInsets.only(top: 12, bottom: 4),
-                width: 40,
+                margin: const EdgeInsets.only(top: 10, bottom: 4),
+                width: 36,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: context.colors.border.withOpacity(0.4),
+                  color: context.colors.border.withOpacity(0.5),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -579,15 +595,31 @@ void showEqualizerDialog(BuildContext context) {
       ),
     );
   } else {
-    showDialog(
+    showGeneralDialog(
       context: context,
-      builder: (_) => Dialog(
-        backgroundColor: Colors.transparent,
+      barrierDismissible: true,
+      barrierLabel: 'Ecualizador',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 350),
+      pageBuilder: (_, __, ___) => Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 480, maxHeight: 680),
-          child: const EqualizerView(),
+          child: Material(
+            color: Colors.transparent,
+            child: const EqualizerView(),
+          ),
         ),
       ),
+      transitionBuilder: (_, anim, __, child) {
+        final curved = CurvedAnimation(parent: anim, curve: Curves.easeOutCubic);
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, 0.15),
+            end: Offset.zero,
+          ).animate(curved),
+          child: FadeTransition(opacity: curved, child: child),
+        );
+      },
     );
   }
 }
