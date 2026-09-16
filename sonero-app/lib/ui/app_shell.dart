@@ -535,19 +535,7 @@ class SettingsPageRoute extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: context.colors.bg,
-      appBar: AppBar(
-        backgroundColor: context.colors.bg,
-        elevation: 0,
-        title: const Text('Ajustes'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: const settings_page.SettingsPage(),
-    );
+    return const settings_page.SettingsPage();
   }
 }
 

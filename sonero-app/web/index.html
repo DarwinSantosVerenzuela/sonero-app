@@ -146,14 +146,33 @@
   </div>
 
   <script>
-    // Remove loading screen when Flutter is ready
-    window.addEventListener('flutter-first-frame', function() {
+    function removeSplash() {
       const loader = document.getElementById('loading-screen');
       if (loader) {
-        loader.classList.add('fade-out');
+        loader.style.transition = 'opacity 0.4s ease';
+        loader.style.opacity = '0';
         setTimeout(() => loader.remove(), 500);
       }
-    });
+    }
+
+    // Remove when Flutter is ready
+    window.addEventListener('flutter-first-frame', removeSplash);
+
+    // After 8s show reload hint
+    setTimeout(function() {
+      const loader = document.getElementById('loading-screen');
+      if (loader) {
+        const subtitle = loader.querySelector('.app-subtitle');
+        if (subtitle) {
+          subtitle.textContent = 'Toca aquí para recargar';
+          subtitle.style.cursor = 'pointer';
+          subtitle.onclick = function() { location.reload(); };
+        }
+      }
+    }, 8000);
+
+    // After 12s FORCE remove splash — NEVER stay stuck
+    setTimeout(removeSplash, 12000);
   </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>

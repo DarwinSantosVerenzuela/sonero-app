@@ -531,7 +531,10 @@ class _PageHeader extends StatelessWidget {
     final isMobile = MediaQuery.of(context).size.width < 600;
 
     final headerText = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 10 : 14,
+        vertical: isMobile ? 6 : 10,
+      ),
       decoration: BoxDecoration(
         color: context.colors.surfaceAlt,
         borderRadius: BorderRadius.circular(12),
@@ -552,151 +555,238 @@ class _PageHeader extends StatelessWidget {
                   child: Text(
                     playlist.name,
                     style: TextStyle(
-                      fontSize: 22,
+                      fontSize: isMobile ? 16 : 22,
                       fontWeight: FontWeight.w700,
                       color: context.colors.textPrimary,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 4),
                 Icon(
                   Icons.add_rounded,
                   color: context.colors.textPrimary,
-                  size: 24,
+                  size: isMobile ? 18 : 24,
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 1),
           Text(
             label,
             style: TextStyle(
               color: context.colors.textSecondary,
-              fontSize: 13,
+              fontSize: isMobile ? 11 : 13,
             ),
           ),
         ],
       ),
     );
 
-    final actions = Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        // AutoFill Button (uses allTracks, not filtered)
-        if (allTracks.isNotEmpty && !isMobile)
-          _AutoFillButton(tracks: allTracks, settings: settings),
-        // Export CSV button (only for playlists, not library root)
-        if (!playlist.isLibrary && allTracks.isNotEmpty && !isMobile)
-          _ExportButton(playlist: playlist, tracks: allTracks, settings: settings),
-        // Grouped icon toolbar
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-          decoration: BoxDecoration(
-            color: context.colors.surfaceAlt,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Multi-select Toggle Button
-              IconButton(
-                icon: Icon(isMultiSelectMode ? Icons.check_circle_rounded : Icons.check_circle_outline_rounded, size: 19),
-                color: isMultiSelectMode ? Theme.of(context).colorScheme.primary : context.colors.textSecondary,
-                tooltip: 'Seleccionar por lotes',
-                onPressed: onToggleMultiSelect,
-                style: IconButton.styleFrom(
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  backgroundColor: Colors.transparent,
-                  side: BorderSide.none,
-                ),
-              ),
-              Container(width: 1, height: 20, color: context.colors.border.withOpacity(0.3)),
-              // Sort button
-              PopupMenuButton<SortOption>(
-                icon: Icon(Icons.sort_rounded, size: 19, color: context.colors.textSecondary),
-                color: context.colors.surfaceAlt,
-                tooltip: 'Ordenar',
-                initialValue: context.read<LibraryProvider>().sortOption,
-                onSelected: (option) {
-                  context.read<LibraryProvider>().setSortOption(option);
-                },
-                itemBuilder: (ctx) => [
-                  const PopupMenuItem(
-                    value: SortOption.dateAdded,
-                    child: Text('Más recientes'),
-                  ),
-                  const PopupMenuItem(
-                    value: SortOption.titleAsc,
-                    child: Text('Título (A-Z)'),
-                  ),
-                  const PopupMenuItem(
-                    value: SortOption.titleDesc,
-                    child: Text('Título (Z-A)'),
-                  ),
-                  const PopupMenuItem(
-                    value: SortOption.artistAsc,
-                    child: Text('Artista (A-Z)'),
-                  ),
-                  const PopupMenuItem(
-                    value: SortOption.artistDesc,
-                    child: Text('Artista (Z-A)'),
-                  ),
-                ],
-              ),
-              Container(width: 1, height: 20, color: context.colors.border.withOpacity(0.3)),
-              // View Toggle Button
-              IconButton(
-                icon: Icon(isListView ? Icons.grid_view_rounded : Icons.list_rounded, size: 19),
-                color: context.colors.textSecondary,
-                tooltip: isListView ? 'Vista de Cuadrícula' : 'Vista de Lista',
-                onPressed: onToggleView,
-                style: IconButton.styleFrom(
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  backgroundColor: Colors.transparent,
-                  side: BorderSide.none,
-                ),
-              ),
-              Container(width: 1, height: 20, color: context.colors.border.withOpacity(0.3)),
-              // Refresh button
-              IconButton(
-                icon: const Icon(Icons.refresh_rounded, size: 19),
-                color: context.colors.textSecondary,
-                tooltip: 'Actualizar',
-                onPressed: () {
-                  context.read<LibraryProvider>().loadTracks(settings.api);
-                },
-                style: IconButton.styleFrom(
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  backgroundColor: Colors.transparent,
-                  side: BorderSide.none,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
+    // Desktop: full toolbar.  Mobile: three-dot menu.
+    final Widget actionsWidget;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 12),
-      child: isMobile
-          ? Row(
+    if (isMobile) {
+      actionsWidget = PopupMenuButton<String>(
+        icon: Icon(Icons.more_vert_rounded, color: context.colors.textSecondary, size: 22),
+        color: context.colors.surfaceAlt,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        onSelected: (value) {
+          switch (value) {
+            case 'multi_select':
+              onToggleMultiSelect();
+              break;
+            case 'toggle_view':
+              onToggleView();
+              break;
+            case 'refresh':
+              context.read<LibraryProvider>().loadTracks(settings.api);
+              break;
+            // Sort options
+            case 'sort_dateAdded':
+              context.read<LibraryProvider>().setSortOption(SortOption.dateAdded);
+              break;
+            case 'sort_titleAsc':
+              context.read<LibraryProvider>().setSortOption(SortOption.titleAsc);
+              break;
+            case 'sort_titleDesc':
+              context.read<LibraryProvider>().setSortOption(SortOption.titleDesc);
+              break;
+            case 'sort_artistAsc':
+              context.read<LibraryProvider>().setSortOption(SortOption.artistAsc);
+              break;
+            case 'sort_artistDesc':
+              context.read<LibraryProvider>().setSortOption(SortOption.artistDesc);
+              break;
+          }
+        },
+        itemBuilder: (ctx) => [
+          PopupMenuItem(
+            value: 'multi_select',
+            child: Row(
               children: [
-                Expanded(child: headerText),
-                const SizedBox(width: 8),
-                actions,
-              ],
-            )
-          : Row(
-              children: [
-                headerText,
-                const Spacer(),
-                actions,
+                Icon(
+                  isMultiSelectMode ? Icons.check_circle_rounded : Icons.check_circle_outline_rounded,
+                  size: 18,
+                  color: isMultiSelectMode ? Theme.of(context).colorScheme.primary : context.colors.textSecondary,
+                ),
+                const SizedBox(width: 10),
+                Text(isMultiSelectMode ? 'Cancelar selección' : 'Seleccionar'),
               ],
             ),
+          ),
+          const PopupMenuDivider(),
+          PopupMenuItem(
+            enabled: false,
+            height: 32,
+            child: Text('Ordenar por', style: TextStyle(
+              fontSize: 12, fontWeight: FontWeight.w600,
+              color: context.colors.textSecondary,
+            )),
+          ),
+          const PopupMenuItem(value: 'sort_dateAdded', child: Text('  Más recientes')),
+          const PopupMenuItem(value: 'sort_titleAsc', child: Text('  Título (A-Z)')),
+          const PopupMenuItem(value: 'sort_titleDesc', child: Text('  Título (Z-A)')),
+          const PopupMenuItem(value: 'sort_artistAsc', child: Text('  Artista (A-Z)')),
+          const PopupMenuItem(value: 'sort_artistDesc', child: Text('  Artista (Z-A)')),
+          const PopupMenuDivider(),
+          PopupMenuItem(
+            value: 'toggle_view',
+            child: Row(
+              children: [
+                Icon(isListView ? Icons.grid_view_rounded : Icons.list_rounded, size: 18, color: context.colors.textSecondary),
+                const SizedBox(width: 10),
+                Text(isListView ? 'Vista cuadrícula' : 'Vista lista'),
+              ],
+            ),
+          ),
+          PopupMenuItem(
+            value: 'refresh',
+            child: Row(
+              children: [
+                Icon(Icons.refresh_rounded, size: 18, color: context.colors.textSecondary),
+                const SizedBox(width: 10),
+                const Text('Actualizar'),
+              ],
+            ),
+          ),
+        ],
+      );
+    } else {
+      actionsWidget = Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          // AutoFill Button (uses allTracks, not filtered)
+          if (allTracks.isNotEmpty)
+            _AutoFillButton(tracks: allTracks, settings: settings),
+          // Export CSV button (only for playlists, not library root)
+          if (!playlist.isLibrary && allTracks.isNotEmpty)
+            _ExportButton(playlist: playlist, tracks: allTracks, settings: settings),
+          // Grouped icon toolbar
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            decoration: BoxDecoration(
+              color: context.colors.surfaceAlt,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Multi-select Toggle Button
+                IconButton(
+                  icon: Icon(isMultiSelectMode ? Icons.check_circle_rounded : Icons.check_circle_outline_rounded, size: 19),
+                  color: isMultiSelectMode ? Theme.of(context).colorScheme.primary : context.colors.textSecondary,
+                  tooltip: 'Seleccionar por lotes',
+                  onPressed: onToggleMultiSelect,
+                  style: IconButton.styleFrom(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    backgroundColor: Colors.transparent,
+                    side: BorderSide.none,
+                  ),
+                ),
+                Container(width: 1, height: 20, color: context.colors.border.withOpacity(0.3)),
+                // Sort button
+                PopupMenuButton<SortOption>(
+                  icon: Icon(Icons.sort_rounded, size: 19, color: context.colors.textSecondary),
+                  color: context.colors.surfaceAlt,
+                  tooltip: 'Ordenar',
+                  initialValue: context.read<LibraryProvider>().sortOption,
+                  onSelected: (option) {
+                    context.read<LibraryProvider>().setSortOption(option);
+                  },
+                  itemBuilder: (ctx) => [
+                    const PopupMenuItem(
+                      value: SortOption.dateAdded,
+                      child: Text('Más recientes'),
+                    ),
+                    const PopupMenuItem(
+                      value: SortOption.titleAsc,
+                      child: Text('Título (A-Z)'),
+                    ),
+                    const PopupMenuItem(
+                      value: SortOption.titleDesc,
+                      child: Text('Título (Z-A)'),
+                    ),
+                    const PopupMenuItem(
+                      value: SortOption.artistAsc,
+                      child: Text('Artista (A-Z)'),
+                    ),
+                    const PopupMenuItem(
+                      value: SortOption.artistDesc,
+                      child: Text('Artista (Z-A)'),
+                    ),
+                  ],
+                ),
+                Container(width: 1, height: 20, color: context.colors.border.withOpacity(0.3)),
+                // View Toggle Button
+                IconButton(
+                  icon: Icon(isListView ? Icons.grid_view_rounded : Icons.list_rounded, size: 19),
+                  color: context.colors.textSecondary,
+                  tooltip: isListView ? 'Vista de Cuadrícula' : 'Vista de Lista',
+                  onPressed: onToggleView,
+                  style: IconButton.styleFrom(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    backgroundColor: Colors.transparent,
+                    side: BorderSide.none,
+                  ),
+                ),
+                Container(width: 1, height: 20, color: context.colors.border.withOpacity(0.3)),
+                // Refresh button
+                IconButton(
+                  icon: const Icon(Icons.refresh_rounded, size: 19),
+                  color: context.colors.textSecondary,
+                  tooltip: 'Actualizar',
+                  onPressed: () {
+                    context.read<LibraryProvider>().loadTracks(settings.api);
+                  },
+                  style: IconButton.styleFrom(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    backgroundColor: Colors.transparent,
+                    side: BorderSide.none,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(isMobile ? 16 : 24, isMobile ? 12 : 20, isMobile ? 12 : 24, isMobile ? 8 : 12),
+      child: Row(
+        children: [
+          Expanded(child: headerText),
+          if (isMobile)
+            actionsWidget
+          else ...[
+            const Spacer(),
+            actionsWidget,
+          ],
+        ],
+      ),
     );
   }
 }
