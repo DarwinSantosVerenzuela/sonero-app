@@ -23,10 +23,6 @@ class MobileExpandedPlayer extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: context.colors.bg,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(28),
-          topRight: Radius.circular(28),
-        ),
       ),
       clipBehavior: Clip.antiAlias,
       child: Stack(
@@ -324,18 +320,9 @@ class MobileExpandedPlayer extends StatelessWidget {
 
                 // ── Volume & Utilities Row ────────────────────────────────────
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: context.colors.surfaceAlt.withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: context.colors.border.withValues(alpha: 0.2),
-                      ),
-                    ),
-                    child: Column(
-                      children: [
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    children: [
                         // Volume slider control
                         Row(
                           children: [
@@ -432,7 +419,6 @@ class MobileExpandedPlayer extends StatelessWidget {
                           ],
                         ),
                       ],
-                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
