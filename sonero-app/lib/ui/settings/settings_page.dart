@@ -13,6 +13,7 @@ import '../../providers/settings_provider.dart';
 import '../../providers/library_provider.dart';
 import '../theme.dart';
 import '../../services/log_service.dart';
+import '../player/equalizer_view.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -305,6 +306,56 @@ class _SettingsPageState extends State<SettingsPage> {
             ],
           );
           }),
+
+          const SizedBox(height: 16),
+
+          // ── Audio / Ecualizador ─────────────────────────────────────
+          _SectionLabel('Audio'),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: context.colors.surface,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                InkWell(
+                  onTap: () => showEqualizerDialog(context),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Row(
+                      children: [
+                        Icon(Icons.equalizer_rounded, size: 20, color: Theme.of(context).colorScheme.primary),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Ecualizador', style: TextStyle(
+                                color: context.colors.textPrimary,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              )),
+                              const SizedBox(height: 2),
+                              Text('EQ de 10 bandas, presets, bass boost, canal y más',
+                                style: TextStyle(
+                                  color: context.colors.textSecondary,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(Icons.chevron_right_rounded, color: context.colors.textSecondary, size: 20),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
 
           const SizedBox(height: 16),
 
