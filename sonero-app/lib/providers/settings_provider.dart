@@ -172,13 +172,11 @@ class SettingsProvider extends ChangeNotifier {
       videoFolder: videoFolder,
     );
     
-    // Sync paths with backend
-    try {
-      await _api.updatePaths(
-        music: musicFolder, 
-        video: videoFolder,
-      );
-    } catch (_) {}
+    // Sync paths with backend (non-blocking — don't delay app start)
+    _api.updatePaths(
+      music: musicFolder, 
+      video: videoFolder,
+    ).timeout(const Duration(seconds: 3)).catchError((_) {});
     
     _isLoaded = true;
     notifyListeners();
@@ -390,6 +388,9 @@ class SettingsProvider extends ChangeNotifier {
   }
 
   Future<void> loginWithGoogle() async {
+    if (kIsWeb) {
+      throw Exception('Google Sign-In no está disponible en la versión web.');
+    }
     if (Platform.isAndroid) {
       try {
         final googleSignIn = GoogleSignIn(

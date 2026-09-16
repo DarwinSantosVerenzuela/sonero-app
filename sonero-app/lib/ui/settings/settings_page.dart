@@ -1,5 +1,8 @@
-import 'dart:io';
+import 'platform_stub.dart'
+    if (dart.library.io) 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:file_picker/file_picker.dart';
+import 'package:sonero_app/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:flutter/services.dart';
@@ -10,7 +13,7 @@ import '../../providers/settings_provider.dart';
 import '../../providers/library_provider.dart';
 import '../theme.dart';
 import '../../services/log_service.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import '../player/equalizer_view.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -59,166 +62,339 @@ class _SettingsPageState extends State<SettingsPage> {
     super.dispose();
   }
 
+  Widget _buildWebSettingsSection(BuildContext context, SettingsProvider settings) {
+    return SizedBox(
+      width: 500,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('URL del Servidor', style: TextStyle(fontWeight: FontWeight.bold, color: context.colors.textPrimary)),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _apiUrlCtrl,
+            decoration: const InputDecoration(hintText: 'http://localhost:8000'),
+            onSubmitted: (v) => settings.setApiUrl(v),
+          ),
+          const SizedBox(height: 16),
+          Text('API Key de Gemini', style: TextStyle(fontWeight: FontWeight.bold, color: context.colors.textPrimary)),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _geminiKeyCtrl,
+            obscureText: true,
+            decoration: const InputDecoration(hintText: 'Tu clave de Google AI Studio'),
+            onSubmitted: (v) => settings.setGeminiApiKey(v),
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () {
+                settings.setApiUrl(_apiUrlCtrl.text);
+                settings.setGeminiApiKey(_geminiKeyCtrl.text);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Configuración guardada.')),
+                );
+              },
+              child: const Text('Guardar'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
+
+
 
     return Scaffold(
       backgroundColor: context.colors.bg,
       appBar: AppBar(
         backgroundColor: context.colors.surface,
+        titleSpacing: 20,
         title: Text(AppLocalizations.of(context)!.settings,
             style: TextStyle(color: context.colors.textPrimary, fontSize: 16, fontWeight: FontWeight.w600)),
         iconTheme: IconThemeData(color: context.colors.textSecondary),
         elevation: 0,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 8),
+          child: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded, size: 20),
+            onPressed: () => Navigator.of(context).pop(),
+            style: IconButton.styleFrom(shape: const CircleBorder(), backgroundColor: Colors.transparent, side: BorderSide.none),
+          ),
+        ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(height: 1, color: context.colors.border),
+          child: Container(height: 1, color: context.colors.border.withOpacity(0.3)),
         ),
       ),
       body: ListView(
         padding: EdgeInsets.fromLTRB(
-          MediaQuery.of(context).size.width < 600 ? 16 : 24,  // left
-          MediaQuery.of(context).size.width < 600 ? 16 : 24,  // top
-          MediaQuery.of(context).size.width < 600 ? 16 : 24,  // right
-          MediaQuery.of(context).size.width < 600 ? 40 : 32,  // bottom
+          MediaQuery.of(context).size.width < 600 ? 16 : 32,  // left
+          MediaQuery.of(context).size.width < 600 ? 16 : 28,  // top
+          MediaQuery.of(context).size.width < 600 ? 16 : 32,  // right
+          MediaQuery.of(context).size.width < 600 ? 40 : 40,  // bottom
         ),
         children: [
           // ── Music folder ───────────────────────────────────────────────
-          _Section(
-            title: AppLocalizations.of(context)!.musicFolder,
-            icon: Icons.folder_outlined,
-            children: [
-              _InfoText(
-                settings.hasMusicFolder
-                    ? settings.musicFolder
-                    : 'No seleccionada',
-              ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.folder_open, size: 16),
-                    label: const Text('Seleccionar carpeta'),
-                    onPressed: () async {
-                      final result = await FilePicker.getDirectoryPath(
-                        dialogTitle: 'Selecciona la carpeta donde guardar la música',
-                      );
-                      if (result != null) {
-                        await settings.setMusicFolder(result);
-                      }
-                    },
+          // ── Carpetas (lado a lado) ─────────────────────────────────
+          _SectionLabel('Almacenamiento'),
+          Builder(builder: (context) {
+            final isMobile = MediaQuery.of(context).size.width < 600;
+            return Flex(
+              direction: isMobile ? Axis.vertical : Axis.horizontal,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+              // Music folder
+              Flexible(
+                fit: isMobile ? FlexFit.loose : FlexFit.tight,
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: context.colors.surface,
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  if (settings.hasMusicFolder) ...[
-                    OutlinedButton.icon(
-                      icon: const Icon(Icons.open_in_new, size: 16),
-                      label: const Text('Abrir'),
-                      onPressed: () {
-                        final path = settings.musicFolder;
-                        if (Platform.isWindows) {
-                          Process.run('explorer', [path]);
-                        } else if (Platform.isMacOS) {
-                          Process.run('open', [path]);
-                        } else if (Platform.isLinux) {
-                          Process.run('xdg-open', [path]);
-                        }
-                      },
-                    ),
-                    const SizedBox(width: 8),
-                    TextButton(
-                      onPressed: () => settings.setMusicFolder(''),
-                      child: Text('Limpiar',
-                          style: TextStyle(color: context.colors.textSecondary)),
-                    ),
-                  ],
-                ],
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 24),
-
-          // ── Video folder ───────────────────────────────────────────────
-          _Section(
-            title: 'Carpeta de Video',
-            icon: Icons.video_library_outlined,
-            children: [
-              _InfoText(
-                settings.hasVideoFolder
-                    ? settings.videoFolder
-                    : 'No seleccionada',
-              ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.folder_open, size: 16),
-                    label: const Text('Seleccionar carpeta'),
-                    onPressed: () async {
-                      final result = await FilePicker.getDirectoryPath(
-                        dialogTitle: 'Selecciona la carpeta donde guardar los videos',
-                      );
-                      if (result != null) {
-                        await settings.setVideoFolder(result);
-                      }
-                    },
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.music_note_rounded, size: 16, color: Theme.of(context).colorScheme.primary),
+                          const SizedBox(width: 8),
+                          Text('Música', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: context.colors.textPrimary)),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      _InfoText(
+                        settings.hasMusicFolder
+                            ? settings.musicFolder
+                            : 'No seleccionada',
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.folder_open, size: 16),
+                            label: const Text('Seleccionar carpeta'),
+                            onPressed: () async {
+                              if (kIsWeb) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Selección de carpeta no disponible en la versión web.')),
+                                );
+                                return;
+                              }
+                              final result = await FilePicker.getDirectoryPath(
+                                dialogTitle: 'Selecciona la carpeta donde guardar la música',
+                              );
+                              if (result != null) {
+                                await settings.setMusicFolder(result);
+                              }
+                            },
+                          ),
+                          if (settings.hasMusicFolder) ...[
+                            OutlinedButton.icon(
+                              icon: const Icon(Icons.open_in_new, size: 16),
+                              label: const Text('Abrir'),
+                              onPressed: kIsWeb ? null : () {
+                                final path = settings.musicFolder;
+                                if (!kIsWeb) {
+                                  if (Platform.isWindows) {
+                                    Process.run('explorer', [path]);
+                                  } else if (Platform.isMacOS) {
+                                    Process.run('open', [path]);
+                                  } else if (Platform.isLinux) {
+                                    Process.run('xdg-open', [path]);
+                                  }
+                                }
+                              },
+                            ),
+                            TextButton(
+                              onPressed: () => settings.setMusicFolder(''),
+                              child: Text('Limpiar',
+                                  style: TextStyle(color: context.colors.textSecondary)),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
                   ),
-                  if (settings.hasVideoFolder) ...[
-                    OutlinedButton.icon(
-                      icon: const Icon(Icons.open_in_new, size: 16),
-                      label: const Text('Abrir'),
-                      onPressed: () {
-                        final path = settings.videoFolder;
-                        if (Platform.isWindows) {
-                          Process.run('explorer', [path]);
-                        } else if (Platform.isMacOS) {
-                          Process.run('open', [path]);
-                        } else if (Platform.isLinux) {
-                          Process.run('xdg-open', [path]);
-                        }
-                      },
+                ),
+              ),
+              SizedBox(width: isMobile ? 0 : 12, height: isMobile ? 12 : 0),
+              // Video folder
+              Flexible(
+                fit: isMobile ? FlexFit.loose : FlexFit.tight,
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: context.colors.surface,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.videocam_rounded, size: 16, color: Theme.of(context).colorScheme.primary),
+                          const SizedBox(width: 8),
+                          Text('Video', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: context.colors.textPrimary)),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      _InfoText(
+                        settings.hasVideoFolder
+                            ? settings.videoFolder
+                            : 'No seleccionada',
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.folder_open, size: 16),
+                            label: const Text('Seleccionar carpeta'),
+                            onPressed: () async {
+                              if (kIsWeb) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Selección de carpeta no disponible en la versión web.')),
+                                );
+                                return;
+                              }
+                              final result = await FilePicker.getDirectoryPath(
+                                dialogTitle: 'Selecciona la carpeta donde guardar los videos',
+                              );
+                              if (result != null) {
+                                await settings.setVideoFolder(result);
+                              }
+                            },
+                          ),
+                          if (settings.hasVideoFolder) ...[
+                            OutlinedButton.icon(
+                              icon: const Icon(Icons.open_in_new, size: 16),
+                              label: const Text('Abrir'),
+                              onPressed: kIsWeb ? null : () {
+                                final path = settings.videoFolder;
+                                if (!kIsWeb) {
+                                  if (Platform.isWindows) {
+                                    Process.run('explorer', [path]);
+                                  } else if (Platform.isMacOS) {
+                                    Process.run('open', [path]);
+                                  } else if (Platform.isLinux) {
+                                    Process.run('xdg-open', [path]);
+                                  }
+                                }
+                              },
+                            ),
+                            TextButton(
+                              onPressed: () => settings.setVideoFolder(''),
+                              child: Text('Limpiar',
+                                  style: TextStyle(color: context.colors.textSecondary)),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+          }),
+
+          const SizedBox(height: 16),
+
+          // ── Audio / Ecualizador ─────────────────────────────────────
+          _SectionLabel('Audio'),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: context.colors.surface,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                InkWell(
+                  onTap: () => showEqualizerDialog(context),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Row(
+                      children: [
+                        Icon(Icons.equalizer_rounded, size: 20, color: Theme.of(context).colorScheme.primary),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Ecualizador', style: TextStyle(
+                                color: context.colors.textPrimary,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              )),
+                              const SizedBox(height: 2),
+                              Text('EQ de 10 bandas, presets, bass boost, canal y más',
+                                style: TextStyle(
+                                  color: context.colors.textSecondary,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(Icons.chevron_right_rounded, color: context.colors.textSecondary, size: 20),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    TextButton(
-                      onPressed: () => settings.setVideoFolder(''),
-                      child: Text('Limpiar',
-                          style: TextStyle(color: context.colors.textSecondary)),
-                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // ── Idioma (row inline) ──────────────────────────────────────
+          _SectionLabel('General'),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: context.colors.surface,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.language_rounded, size: 18, color: context.colors.textSecondary),
+                    const SizedBox(width: 10),
+                    Text('Idioma', style: TextStyle(color: context.colors.textPrimary, fontSize: 13)),
                   ],
-                ],
-              ),
-            ],
+                ),
+                DropdownButton<String>(
+                  value: settings.locale,
+                  dropdownColor: context.colors.surfaceAlt,
+                  underline: const SizedBox(),
+                  items: [
+                    DropdownMenuItem(value: 'es', child: Text(AppLocalizations.of(context)!.languageSpanish)),
+                    DropdownMenuItem(value: 'en', child: Text(AppLocalizations.of(context)!.languageEnglish)),
+                    DropdownMenuItem(value: 'ja', child: Text(AppLocalizations.of(context)!.languageJapanese)),
+                  ],
+                  onChanged: (lang) {
+                    if (lang != null) settings.setLocale(lang);
+                  },
+                ),
+              ],
+            ),
           ),
 
-          const SizedBox(height: 24),
-
-          // ── Language ────────────────────────────────────────────────────
-          _Section(
-            title: AppLocalizations.of(context)!.language,
-            icon: Icons.language,
-            children: [
-              DropdownButton<String>(
-                value: settings.locale,
-                dropdownColor: context.colors.surfaceAlt,
-                underline: const SizedBox(),
-                isExpanded: true,
-                items: [
-                  DropdownMenuItem(value: 'es', child: Text(AppLocalizations.of(context)!.languageSpanish)),
-                  DropdownMenuItem(value: 'en', child: Text(AppLocalizations.of(context)!.languageEnglish)),
-                  DropdownMenuItem(value: 'ja', child: Text(AppLocalizations.of(context)!.languageJapanese)),
-                ],
-                onChanged: (lang) {
-                  if (lang != null) settings.setLocale(lang);
-                },
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
 
           // ── Authentication (Anti-Bot) ──────────────────────────────────
           _Section(
@@ -262,6 +438,12 @@ class _SettingsPageState extends State<SettingsPage> {
                       icon: Icon(Icons.upload_file, size: 16),
                       label: Text('Cargar cookies.txt'),
                       onPressed: () async {
+                        if (kIsWeb) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Carga de archivos no disponible en la versión web.')),
+                          );
+                          return;
+                        }
                         final result = await FilePicker.pickFiles(
                           dialogTitle: 'Selecciona tu archivo cookies.txt',
                           type: FileType.custom,
@@ -293,7 +475,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ],
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
 
           // ── Google Cloud Integration ────────────────────────────────────
           _Section(
@@ -305,28 +487,42 @@ class _SettingsPageState extends State<SettingsPage> {
                 style: TextStyle(color: context.colors.textSecondary, fontSize: 12),
               ),
               const SizedBox(height: 16),
-              TextField(
-                controller: _googleClientIdCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Google Client ID',
-                  hintText: 'ej. 123456789-abc.apps.googleusercontent.com',
-                  prefixIcon: Icon(Icons.vpn_key_outlined, size: 18),
-                ),
-                style: TextStyle(fontSize: 13),
-                onSubmitted: (v) => settings.setGoogleClientId(v),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _googleClientSecretCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Google Client Secret',
-                  hintText: 'Introduce tu Client Secret de Google Cloud',
-                  prefixIcon: Icon(Icons.lock_outline_rounded, size: 18),
-                ),
-                obscureText: true,
-                style: TextStyle(fontSize: 13),
-                onSubmitted: (v) => settings.setGoogleClientSecret(v),
-              ),
+              Builder(builder: (ctx) {
+                final isMobile = MediaQuery.of(ctx).size.width < 600;
+                return Flex(
+                  direction: isMobile ? Axis.vertical : Axis.horizontal,
+                  children: [
+                    Flexible(
+                      fit: isMobile ? FlexFit.loose : FlexFit.tight,
+                      child: TextField(
+                        controller: _googleClientIdCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Google Client ID',
+                          hintText: 'ej. 123456789-abc.apps.googleusercontent.com',
+                          prefixIcon: Icon(Icons.vpn_key_outlined, size: 18),
+                        ),
+                        style: TextStyle(fontSize: 13),
+                        onSubmitted: (v) => settings.setGoogleClientId(v),
+                      ),
+                    ),
+                    SizedBox(width: isMobile ? 0 : 12, height: isMobile ? 12 : 0),
+                    Flexible(
+                      fit: isMobile ? FlexFit.loose : FlexFit.tight,
+                      child: TextField(
+                        controller: _googleClientSecretCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Google Client Secret',
+                          hintText: 'Introduce tu Client Secret',
+                          prefixIcon: Icon(Icons.lock_outline_rounded, size: 18),
+                        ),
+                        obscureText: true,
+                        style: TextStyle(fontSize: 13),
+                        onSubmitted: (v) => settings.setGoogleClientSecret(v),
+                      ),
+                    ),
+                  ],
+                );
+              }),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () {
@@ -343,7 +539,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ],
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
 
           // ── Google Drive Sync ───────────────────────────────────────────
           if (settings.isLoggedIn) ...[
@@ -429,7 +625,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
           ],
 
           // ── Appearance ──────────────────────────────────────────────────
@@ -504,7 +700,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ],
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
 
           // ── Servicio de Reconocimiento ─────────────────────────────────
           _Section(
@@ -648,7 +844,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ],
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
 
           // ── Backend API URL ────────────────────────────────────────────
           _Section(
@@ -691,7 +887,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ],
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
 
           // ── Listen duration ────────────────────────────────────────────
           _Section(
@@ -732,7 +928,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ],
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
 
           // ── Lyrics latency/offset ──────────────────────────────────────
           _Section(
@@ -782,11 +978,11 @@ class _SettingsPageState extends State<SettingsPage> {
             ],
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
 
           // ── Hotkeys ──────────────────────────────────────────────────
           // Solo se muestran en escritorio: en Android no existen teclas globales
-          if (!Platform.isAndroid) ...[
+          if (!kIsWeb && !Platform.isAndroid) ...[
             _Section(
               title: 'Atajos de teclado globales',
               icon: Icons.keyboard_outlined,
@@ -832,7 +1028,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
           ],
 
           // ── Mic device ─────────────────────────────────────────────
@@ -866,7 +1062,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ],
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
 
           // ── Mantenimiento de Biblioteca ───────────────────────────────
           _Section(
@@ -886,7 +1082,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ],
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
 
           // ── Logs de Diagnóstico ───────────────────────────────────────
           _Section(
@@ -1178,30 +1374,59 @@ class _Section extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isMobile = MediaQuery.of(context).size.width < 600;
-    return Container(
-      padding: EdgeInsets.all(isMobile ? 14 : 20),
-      decoration: BoxDecoration(
-        color: context.colors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: context.colors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: isMobile ? 16 : 18, color: Theme.of(context).colorScheme.primary),
-              SizedBox(width: isMobile ? 6 : 8),
-              Text(title,
-                  style: TextStyle(
-                      color: context.colors.textPrimary,
-                      fontWeight: FontWeight.w600,
-                      fontSize: isMobile ? 13 : 14)),
-            ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Uppercase section header label (outside the card)
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(
+            title.toUpperCase(),
+            style: TextStyle(
+              color: context.colors.textSecondary.withOpacity(0.6),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
+            ),
           ),
-          SizedBox(height: isMobile ? 12 : 16),
-          ...children,
-        ],
+        ),
+        // Content card
+        Container(
+          width: double.infinity,
+          padding: EdgeInsets.symmetric(
+            horizontal: isMobile ? 14 : 20,
+            vertical: isMobile ? 14 : 16,
+          ),
+          decoration: BoxDecoration(
+            color: context.colors.surface,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: children,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  final String title;
+  const _SectionLabel(this.title);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 8, top: 4),
+      child: Text(
+        title.toUpperCase(),
+        style: TextStyle(
+          color: context.colors.textSecondary.withOpacity(0.6),
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.8,
+        ),
       ),
     );
   }
@@ -1217,7 +1442,6 @@ class _InfoText extends StatelessWidget {
         decoration: BoxDecoration(
           color: context.colors.surfaceAlt,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: context.colors.border),
         ),
         child: Text(text,
             style: TextStyle(

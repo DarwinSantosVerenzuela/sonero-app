@@ -1,10 +1,13 @@
-import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:permission_handler/permission_handler.dart';
 import '../providers/settings_provider.dart';
 import '../ui/theme.dart';
+
+// Conditionally import dart:io and permission_handler only on non-web
+import 'setup_modal_platform_stub.dart'
+    if (dart.library.io) 'setup_modal_platform_io.dart';
 
 class SetupModal extends StatefulWidget {
   const SetupModal({super.key});
@@ -19,28 +22,16 @@ class _SetupModalState extends State<SetupModal> {
   @override
   void initState() {
     super.initState();
-    _requestPermissions();
-  }
-
-  Future<void> _requestPermissions() async {
-    if (Platform.isAndroid) {
-      try {
-        await [
-          Permission.audio,
-          Permission.videos,
-          Permission.storage,
-          Permission.manageExternalStorage,
-          Permission.notification,
-          Permission.microphone,
-        ].request();
-        
-        if (mounted) {
-          await context.read<SettingsProvider>().refreshFolders();
-          setState(() {});
-        }
-      } catch (e) {
-        debugPrint('Error requesting permissions in SetupModal: $e');
-      }
+    if (kIsWeb) {
+      // On web, auto-configure default folders and close the modal
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        final settings = context.read<SettingsProvider>();
+        await settings.setMusicFolder('/web/downloads');
+        await settings.setVideoFolder('/web/downloads/videos');
+        if (mounted) Navigator.pop(context);
+      });
+    } else {
+      requestPlatformPermissions(context);
     }
   }
 
@@ -61,6 +52,7 @@ class _SetupModalState extends State<SetupModal> {
       if (mounted) setState(() {});
     }
   }
+
 
   @override
   Widget build(BuildContext context) {

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import 'package:path/path.dart' as p;
@@ -21,7 +22,7 @@ class ApiClient {
 
   ApiClient({required this.baseUrl, this.musicFolder, this.videoFolder});
 
-  bool get isNative => Platform.isAndroid || Platform.isIOS || baseUrl == 'native';
+  bool get isNative => !kIsWeb && baseUrl == 'native';
 
   // ── Listen pipeline ──────────────────────────────────────────────────────
 

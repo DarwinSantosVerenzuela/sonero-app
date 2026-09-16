@@ -11,12 +11,13 @@ import 'providers/settings_provider.dart';
 import 'providers/library_provider.dart';
 import 'providers/listen_provider.dart';
 import 'providers/player_provider.dart';
+import 'providers/equalizer_provider.dart';
 import 'providers/downloads_provider.dart';
 import 'ui/app_shell.dart';
 import 'ui/theme.dart';
 import 'ui/video_download_dialog.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:sonero_app/l10n/app_localizations.dart';
 
 class ShazamApp extends StatefulWidget {
   const ShazamApp({super.key});
@@ -31,6 +32,7 @@ class _ShazamAppState extends State<ShazamApp> with TrayListener, WindowListener
   final _listen    = ListenProvider();
   final _player    = PlayerProvider();
   final _downloads = DownloadsProvider();
+  final _equalizer  = EqualizerProvider();
   final _hotkeys   = HotkeyService();
   final _navigatorKey = GlobalKey<NavigatorState>();
   bool _initialized = false;
@@ -42,42 +44,53 @@ class _ShazamAppState extends State<ShazamApp> with TrayListener, WindowListener
   }
 
   Future<void> _boot() async {
-    await _settings.load();
-    _downloads.startPolling(_settings.api);
+    try {
+      await _settings.load();
+      _downloads.startPolling(_settings.api);
 
-    // Register global hotkeys (Windows desktop only)
-    if (!kIsWeb && Platform.isWindows) {
-      await localNotifier.setup(appName: 'Sonero');
-      windowManager.addListener(this);
-      await windowManager.setPreventClose(true);
-      
-      trayManager.addListener(this);
-      await trayManager.setIcon(
-        Platform.isWindows ? 'windows/runner/resources/app_icon.ico' : 'app_icon.ico',
-      );
-      
-      Menu menu = Menu(
-        items: [
-          MenuItem(key: 'show_window', label: 'Abrir Sonero'),
-          MenuItem.separator(),
-          MenuItem(key: 'exit_app', label: 'Salir'),
-        ],
-      );
-      await trayManager.setContextMenu(menu);
+      // Equalizer: safe init (may fail on web)
+      try {
+        _equalizer.setPlayer(_player.player);
+      } catch (e) {
+        debugPrint('Equalizer init skipped: $e');
+      }
 
-      await _hotkeys.initialize(
-        onMicTriggered: _listenMic,
-        onSystemTriggered: _listenSystem,
-        onVideoTriggered: _listenVideo,
-        onHideTriggered: () => windowManager.hide(),
-        onShowTriggered: () async {
-          await windowManager.show();
-          await windowManager.focus();
-        },
-      );
+      // Register global hotkeys (Windows desktop only)
+      if (!kIsWeb && Platform.isWindows) {
+        await localNotifier.setup(appName: 'Sonero');
+        windowManager.addListener(this);
+        await windowManager.setPreventClose(true);
+        
+        trayManager.addListener(this);
+        await trayManager.setIcon(
+          Platform.isWindows ? 'windows/runner/resources/app_icon.ico' : 'app_icon.ico',
+        );
+        
+        Menu menu = Menu(
+          items: [
+            MenuItem(key: 'show_window', label: 'Abrir Sonero'),
+            MenuItem.separator(),
+            MenuItem(key: 'exit_app', label: 'Salir'),
+          ],
+        );
+        await trayManager.setContextMenu(menu);
+
+        await _hotkeys.initialize(
+          onMicTriggered: _listenMic,
+          onSystemTriggered: _listenSystem,
+          onVideoTriggered: _listenVideo,
+          onHideTriggered: () => windowManager.hide(),
+          onShowTriggered: () async {
+            await windowManager.show();
+            await windowManager.focus();
+          },
+        );
+      }
+    } catch (e) {
+      debugPrint('Boot error (continuing anyway): $e');
     }
 
-
+    // ALWAYS mark as initialized, even if something above failed
     setState(() => _initialized = true);
   }
 
@@ -193,6 +206,7 @@ class _ShazamAppState extends State<ShazamApp> with TrayListener, WindowListener
         ChangeNotifierProvider.value(value: _listen),
         ChangeNotifierProvider.value(value: _player),
         ChangeNotifierProvider.value(value: _downloads),
+        ChangeNotifierProvider.value(value: _equalizer),
         Provider.value(value: _hotkeys),
       ],
       child: Builder(

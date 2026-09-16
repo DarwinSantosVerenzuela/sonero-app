@@ -179,6 +179,7 @@ class _WifiTransferPageState extends State<WifiTransferPage>
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
+        titleSpacing: 24,
         title: Row(
           children: [
             Icon(Icons.swap_horizontal_circle_rounded, color: primaryColor, size: 24),
@@ -320,7 +321,7 @@ class _WifiTransferPageState extends State<WifiTransferPage>
                         backgroundColor: primaryColor,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                     ),
                   ],

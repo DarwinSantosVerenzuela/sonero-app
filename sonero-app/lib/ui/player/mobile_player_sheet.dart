@@ -6,6 +6,7 @@ import '../../providers/player_provider.dart';
 import '../theme.dart';
 import '../widgets/track_cover_image.dart';
 import 'lyrics_view.dart';
+import 'equalizer_view.dart';
 
 class MobileExpandedPlayer extends StatelessWidget {
   const MobileExpandedPlayer({super.key});
@@ -22,10 +23,6 @@ class MobileExpandedPlayer extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: context.colors.bg,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(28),
-          topRight: Radius.circular(28),
-        ),
       ),
       clipBehavior: Clip.antiAlias,
       child: Stack(
@@ -33,16 +30,18 @@ class MobileExpandedPlayer extends StatelessWidget {
           // ── Background artwork blur ────────────────────────────────────────
           if (hasCover && getCoverImageProvider(track.coverUrl) != null)
             Positioned.fill(
-              child: ImageFiltered(
-                imageFilter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
-                child: Container(
-                  decoration: BoxDecoration(
-                    image: DecorationImage(
-                      image: getCoverImageProvider(track.coverUrl)!,
-                      fit: BoxFit.cover,
-                      colorFilter: ColorFilter.mode(
-                        Colors.black.withValues(alpha: 0.65),
-                        BlendMode.darken,
+              child: ClipRect(
+                child: ImageFiltered(
+                  imageFilter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      image: DecorationImage(
+                        image: getCoverImageProvider(track.coverUrl)!,
+                        fit: BoxFit.cover,
+                        colorFilter: ColorFilter.mode(
+                          Colors.black.withValues(alpha: 0.75),
+                          BlendMode.darken,
+                        ),
                       ),
                     ),
                   ),
@@ -323,15 +322,12 @@ class MobileExpandedPlayer extends StatelessWidget {
 
                 // ── Volume & Utilities Row ────────────────────────────────────
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
                     decoration: BoxDecoration(
-                      color: context.colors.surfaceAlt.withValues(alpha: 0.5),
+                      color: context.colors.surfaceAlt.withValues(alpha: 0.45),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: context.colors.border.withValues(alpha: 0.2),
-                      ),
                     ),
                     child: Column(
                       children: [
@@ -370,7 +366,7 @@ class MobileExpandedPlayer extends StatelessWidget {
                             // Lyrics Button
                             TextButton.icon(
                               onPressed: () {
-                                Navigator.of(context).pop(); // Close sheet
+                                Navigator.of(context).pop();
                                 _showLyricsDialog(
                                   context,
                                   track.title,
@@ -390,7 +386,7 @@ class MobileExpandedPlayer extends StatelessWidget {
                             if (player.isVideo)
                               TextButton.icon(
                                 onPressed: () {
-                                  Navigator.of(context).pop(); // Close sheet
+                                  Navigator.of(context).pop();
                                   player.setVideoMode(true);
                                 },
                                 icon: Icon(Icons.fullscreen_rounded,
@@ -401,10 +397,24 @@ class MobileExpandedPlayer extends StatelessWidget {
                                       color: context.colors.textSecondary, fontSize: 12),
                                 ),
                               ),
+                            // Equalizer Button
+                            TextButton.icon(
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                                showEqualizerDialog(context);
+                              },
+                              icon: Icon(Icons.equalizer_rounded,
+                                  color: context.colors.textSecondary, size: 18),
+                              label: Text(
+                                'Ecualizador',
+                                style: TextStyle(
+                                    color: context.colors.textSecondary, fontSize: 12),
+                              ),
+                            ),
                             // Stop Button
                             TextButton.icon(
                               onPressed: () {
-                                Navigator.of(context).pop(); // Close sheet
+                                Navigator.of(context).pop();
                                 player.stop();
                               },
                               icon: const Icon(Icons.stop_rounded,

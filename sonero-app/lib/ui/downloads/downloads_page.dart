@@ -1,8 +1,8 @@
+import 'package:sonero_app/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/downloads_provider.dart';
 import '../theme.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class DownloadsPage extends StatelessWidget {
   const DownloadsPage({super.key});

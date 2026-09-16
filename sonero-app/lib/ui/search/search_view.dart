@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:sonero_app/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/library_provider.dart';
@@ -9,7 +10,6 @@ import '../../models/playlist.dart';
 import '../theme.dart';
 import '../widgets/track_cover_image.dart';
 import 'download_options_dialog.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 
 class SearchView extends StatefulWidget {
@@ -30,6 +30,8 @@ class _SearchViewState extends State<SearchView> with SingleTickerProviderStateM
   bool _isSearchingOnline = false;
   List<dynamic> _onlineResults = [];
   String? _onlineError;
+  bool _isListening = false;
+  String? _listenStatus;
 
   @override
   void initState() {
@@ -140,55 +142,255 @@ class _SearchViewState extends State<SearchView> with SingleTickerProviderStateM
     }).toList();
   }
 
+  Future<void> _startListening() async {
+    if (_isListening) return;
+    setState(() {
+      _isListening = true;
+      _listenStatus = 'Escuchando...';
+    });
+    try {
+      final settings = context.read<SettingsProvider>();
+      final duration = settings.listenDuration;
+      final jobId = await settings.api.startListening(
+        duration: duration,
+        autoDownload: false,
+        source: 'mic',
+        deviceIndex: settings.deviceIndex,
+      );
+
+      // Poll for results
+      Map<String, dynamic> status;
+      do {
+        await Future.delayed(const Duration(seconds: 1));
+        if (!mounted) return;
+        status = await settings.api.getJobStatus(jobId);
+        final step = status['step']?.toString() ?? '';
+        setState(() => _listenStatus = step.isNotEmpty ? step : 'Procesando...');
+      } while (status['status'] != 'done' && status['status'] != 'error' && mounted);
+
+      if (!mounted) return;
+
+      if (status['status'] == 'error') {
+        final msg = status['error']?.toString() ?? 'Error desconocido';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo identificar: $msg'), backgroundColor: context.colors.error),
+        );
+      } else {
+        // Extract track info from job result
+        final track = status['track'] as Map<String, dynamic>?;
+        if (track != null && track['title'] != null) {
+          final title = track['title']?.toString() ?? '';
+          final artist = track['artist']?.toString() ?? '';
+          final searchQuery = '$artist $title'.trim();
+          _searchController.text = searchQuery;
+          _onSearchChanged(searchQuery);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Canción identificada: $title - $artist'),
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('No se pudo identificar la canción. Intenta con más volumen.'),
+              backgroundColor: context.colors.error,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: context.colors.error),
+        );
+      }
+    } finally {
+      if (mounted) setState(() {
+        _isListening = false;
+        _listenStatus = null;
+      });
+    }
+  }
+
+  bool get _hasResults => _query.trim().isNotEmpty;
+
   @override
   Widget build(BuildContext context) {
     final library = context.watch<LibraryProvider>();
     final localResults = _getFilteredLocalTracks(library.tracks);
     final localPlaylists = _getFilteredPlaylists(library.playlists);
     final isMobile = MediaQuery.of(context).size.width < 600;
+    final accent = Theme.of(context).colorScheme.primary;
 
     // Split online results into playlists, normal videos, and shorts
     final normalVideos = _onlineResults.where((r) => r['is_short'] != true && r['is_playlist'] != true).toList();
     final shortVideos = _onlineResults.where((r) => r['is_short'] == true && r['is_playlist'] != true).toList();
     final onlinePlaylists = _onlineResults.where((r) => r['is_playlist'] == true).toList();
 
-
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── Header / Search Bar (Desktop only) ─────────────────────────────
-        if (!isMobile)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(32, 32, 32, 16),
-            child: TextField(
-              controller: _searchController,
-              onChanged: _onSearchChanged,
-              style: TextStyle(
-                fontSize: 24,
-                color: context.colors.textPrimary,
-                fontWeight: FontWeight.bold,
-              ),
-              decoration: InputDecoration(
-                hintText: 'Buscar canciones, artistas, o YouTube...',
-                hintStyle: TextStyle(color: context.colors.textSecondary.withOpacity(0.5)),
-                prefixIcon: Icon(Icons.search_rounded, size: 32, color: context.colors.textSecondary),
-                filled: true,
-                fillColor: context.colors.surfaceAlt,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 20),
+        // ── Hero Gradient + Search Bar ─────────────────────────────────────
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeOutCubic,
+          height: _hasResults ? (isMobile ? 100 : 120) : (isMobile ? 280 : 340),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                accent.withOpacity(0.12),
+                accent.withOpacity(0.06),
+                accent.withOpacity(0.02),
+                context.colors.bg.withOpacity(1.0),
+              ],
+              stops: const [0.0, 0.35, 0.7, 1.0],
+            ),
+          ),
+          child: Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: isMobile ? 24 : 60),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Title text — only when no results
+                  AnimatedCrossFade(
+                    duration: const Duration(milliseconds: 300),
+                    crossFadeState: _hasResults ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+                    firstChild: Column(
+                      children: [
+                        Icon(Icons.search_rounded, size: 40, color: accent.withOpacity(0.4)),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Busca tu música',
+                          style: TextStyle(
+                            fontSize: isMobile ? 22 : 28,
+                            fontWeight: FontWeight.w800,
+                            color: context.colors.textPrimary,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Coloca el nombre, link o artista para escuchar y descargar',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: isMobile ? 12 : 14,
+                            color: context.colors.textSecondary.withOpacity(0.7),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+                    secondChild: const SizedBox(height: 8),
+                  ),
+                  // ── Pill Search Bar ──────────────────────────────────────
+                  Container(
+                    constraints: const BoxConstraints(maxWidth: 640),
+                    decoration: BoxDecoration(
+                      color: context.colors.surface,
+                      borderRadius: BorderRadius.circular(50),
+                      border: Border.all(color: context.colors.border.withOpacity(0.4)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.04),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: _onSearchChanged,
+                      style: TextStyle(
+                        fontSize: isMobile ? 14 : 15,
+                        color: context.colors.textPrimary,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: 'Buscar canciones, artistas, o YouTube...',
+                        hintStyle: TextStyle(
+                          color: context.colors.textSecondary.withOpacity(0.4),
+                          fontSize: isMobile ? 13 : 14,
+                        ),
+                        prefixIcon: Padding(
+                          padding: const EdgeInsets.only(left: 16, right: 8),
+                          child: _isSearchingOnline
+                              ? SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: accent,
+                                  ),
+                                )
+                              : Icon(Icons.search_rounded, size: 20, color: context.colors.textSecondary.withOpacity(0.5)),
+                        ),
+                        prefixIconConstraints: const BoxConstraints(minWidth: 44, minHeight: 20),
+                        suffixIcon: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Ear / Audio recognition button
+                            Tooltip(
+                              message: _isListening
+                                  ? (_listenStatus ?? 'Escuchando...')
+                                  : 'Identificar canción por audio',
+                              child: IconButton(
+                                icon: _isListening
+                                    ? SizedBox(
+                                        width: 19,
+                                        height: 19,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: accent,
+                                        ),
+                                      )
+                                    : Icon(Icons.hearing_rounded, size: 19, color: accent.withOpacity(0.6)),
+                                onPressed: _isListening ? null : _startListening,
+                                style: IconButton.styleFrom(
+                                  shape: const CircleBorder(),
+                                  backgroundColor: Colors.transparent,
+                                  side: BorderSide.none,
+                                ),
+                              ),
+                            ),
+                            if (_query.isNotEmpty)
+                              IconButton(
+                                icon: Icon(Icons.close_rounded, size: 18, color: context.colors.textSecondary),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  _onSearchChanged('');
+                                },
+                                style: IconButton.styleFrom(
+                                  shape: const CircleBorder(),
+                                  backgroundColor: Colors.transparent,
+                                  side: BorderSide.none,
+                                ),
+                              ),
+                            const SizedBox(width: 4),
+                          ],
+                        ),
+                        filled: false,
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 16),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
+        ),
 
-        // ── Mobile: TabBar para alternar entre Local y YouTube ────────────
-        if (isMobile && _query.trim().isNotEmpty)
+        // ── Mobile: TabBar ─────────────────────────────────────────────────
+        if (isMobile && _hasResults)
           TabBar(
             controller: _mobileTabController,
-            indicatorColor: Theme.of(context).colorScheme.primary,
-            labelColor: Theme.of(context).colorScheme.primary,
+            indicatorColor: accent,
+            labelColor: accent,
             unselectedLabelColor: context.colors.textSecondary,
             labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
             tabs: [
@@ -209,14 +411,14 @@ class _SearchViewState extends State<SearchView> with SingleTickerProviderStateM
             ],
           ),
 
-        Divider(height: 1, color: context.colors.border),
+        if (_hasResults)
+          Divider(height: 1, color: context.colors.border.withOpacity(0.3)),
 
         // ── Results ───────────────────────────────────────────────────────
         Expanded(
-          child: _query.trim().isEmpty
-              ? _EmptySearchState()
+          child: !_hasResults
+              ? const SizedBox.shrink()
               : isMobile
-                  // Mobile: TabBarView con una columna a la vez
                   ? TabBarView(
                       controller: _mobileTabController,
                       children: [
@@ -234,7 +436,6 @@ class _SearchViewState extends State<SearchView> with SingleTickerProviderStateM
                         ),
                       ],
                     )
-                  // Desktop: dos columnas side-by-side
                   : Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -246,7 +447,7 @@ class _SearchViewState extends State<SearchView> with SingleTickerProviderStateM
                             onNavigate: widget.onNavigate,
                           ),
                         ),
-                        Container(width: 1, color: context.colors.border),
+                        Container(width: 1, color: context.colors.border.withOpacity(0.3)),
                         Expanded(
                           flex: 1,
                           child: _YouTubeResultsColumn(
@@ -260,7 +461,6 @@ class _SearchViewState extends State<SearchView> with SingleTickerProviderStateM
                       ],
                     ),
         ),
-
       ],
     );
   }
@@ -576,21 +776,36 @@ class _YouTubeResultItem extends StatelessWidget {
     final dur = (video['duration'] as num?)?.toInt();
     final durStr = dur != null ? '${dur ~/ 60}:${(dur % 60).toString().padLeft(2, '0')}' : '--:--';
 
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(vertical: 8),
-      leading: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: video['thumbnail'] != null
-            ? Image.network(video['thumbnail'], width: 80, height: 45, fit: BoxFit.cover, errorBuilder: (_,__,___) => Container(width: 80, height: 45, color: context.colors.surfaceAlt))
-            : Container(width: 80, height: 45, color: context.colors.surfaceAlt),
-      ),
-      title: Text(video['title'] ?? 'Unknown', maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: context.colors.textPrimary, fontSize: 14)),
-      subtitle: Text('${video['channel']} • $durStr', style: TextStyle(color: context.colors.textSecondary, fontSize: 12)),
-      trailing: IconButton(
-        icon: Icon(Icons.download_rounded, color: Theme.of(context).colorScheme.primary),
-        onPressed: () => _download(context, video),
-      ),
+    return _HoverContainer(
       onTap: () => _download(context, video),
+      borderRadius: BorderRadius.circular(12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: video['thumbnail'] != null
+                ? Image.network(video['thumbnail'], width: 80, height: 45, fit: BoxFit.cover, errorBuilder: (_,__,___) => Container(width: 80, height: 45, color: context.colors.surfaceAlt))
+                : Container(width: 80, height: 45, color: context.colors.surfaceAlt),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(video['title'] ?? 'Unknown', maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: context.colors.textPrimary, fontSize: 14)),
+                const SizedBox(height: 2),
+                Text('${video['channel']} • $durStr', style: TextStyle(color: context.colors.textSecondary, fontSize: 12)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: Icon(Icons.download_rounded, color: Theme.of(context).colorScheme.primary),
+            onPressed: () => _download(context, video),
+          ),
+        ],
+      ),
     );
   }
 
@@ -686,6 +901,50 @@ class _EmptySearchState extends StatelessWidget {
           const SizedBox(height: 16),
           Text('Escribe para buscar...', style: TextStyle(color: context.colors.textSecondary, fontSize: 18)),
         ],
+      ),
+    );
+  }
+}
+
+class _HoverContainer extends StatefulWidget {
+  final Widget child;
+  final VoidCallback? onTap;
+  final BorderRadius borderRadius;
+  final EdgeInsetsGeometry padding;
+
+  const _HoverContainer({
+    required this.child,
+    this.onTap,
+    this.borderRadius = const BorderRadius.all(Radius.circular(12)),
+    this.padding = const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+  });
+
+  @override
+  State<_HoverContainer> createState() => _HoverContainerState();
+}
+
+class _HoverContainerState extends State<_HoverContainer> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: widget.padding,
+          decoration: BoxDecoration(
+            color: _isHovered
+                ? context.colors.textPrimary.withOpacity(0.05)
+                : Colors.transparent,
+            borderRadius: widget.borderRadius,
+          ),
+          child: widget.child,
+        ),
       ),
     );
   }

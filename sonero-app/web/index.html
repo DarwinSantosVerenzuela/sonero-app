@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="Sonero - Tu reproductor de música inteligente">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Sonero">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>Sonero</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #0a0a0f;
+      overflow: hidden;
+    }
+
+    .loading-screen {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(145deg, #0a0a0f 0%, #12101c 50%, #0a0a0f 100%);
+      z-index: 9999;
+      transition: opacity 0.5s ease-out;
+    }
+
+    .loading-screen.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .logo-container {
+      position: relative;
+      width: 80px;
+      height: 80px;
+      margin-bottom: 32px;
+    }
+
+    .logo-glow {
+      position: absolute;
+      inset: -20px;
+      background: radial-gradient(circle, rgba(123, 47, 255, 0.3) 0%, transparent 70%);
+      border-radius: 50%;
+      animation: pulse-glow 2s ease-in-out infinite;
+    }
+
+    .logo-icon {
+      position: relative;
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, #7B2FFF 0%, #a855f7 50%, #7B2FFF 100%);
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 32px rgba(123, 47, 255, 0.4);
+    }
+
+    .logo-icon svg {
+      width: 40px;
+      height: 40px;
+      fill: white;
+    }
+
+    .app-title {
+      font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 28px;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+    }
+
+    .app-subtitle {
+      font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.4);
+      margin-bottom: 40px;
+    }
+
+    .progress-container {
+      width: 200px;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #7B2FFF, #a855f7);
+      border-radius: 2px;
+      animation: loading-progress 25s ease-out forwards;
+      box-shadow: 0 0 12px rgba(123, 47, 255, 0.5);
+    }
+
+    @keyframes loading-progress {
+      0% { width: 0%; }
+      10% { width: 15%; }
+      30% { width: 35%; }
+      50% { width: 55%; }
+      70% { width: 70%; }
+      90% { width: 85%; }
+      100% { width: 95%; }
+    }
+
+    @keyframes pulse-glow {
+      0%, 100% { transform: scale(1); opacity: 0.5; }
+      50% { transform: scale(1.2); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Loading screen shown while Flutter initializes -->
+  <div class="loading-screen" id="loading-screen">
+    <div class="logo-container">
+      <div class="logo-glow"></div>
+      <div class="logo-icon" style="background: none; box-shadow: none;">
+        <img src="favicon.png" alt="Sonero" style="width: 80px; height: 80px; border-radius: 20px;">
+      </div>
+    </div>
+    <div class="app-title">Sonero</div>
+    <div class="app-subtitle">Cargando tu experiencia musical...</div>
+    <div class="progress-container">
+      <div class="progress-bar"></div>
+    </div>
+  </div>
+
+  <script>
+    function removeSplash() {
+      const loader = document.getElementById('loading-screen');
+      if (loader) {
+        loader.style.transition = 'opacity 0.4s ease';
+        loader.style.opacity = '0';
+        setTimeout(() => loader.remove(), 500);
+      }
+    }
+
+    // Remove when Flutter is ready
+    window.addEventListener('flutter-first-frame', removeSplash);
+
+    // After 8s show reload hint
+    setTimeout(function() {
+      const loader = document.getElementById('loading-screen');
+      if (loader) {
+        const subtitle = loader.querySelector('.app-subtitle');
+        if (subtitle) {
+          subtitle.textContent = 'Toca aquí para recargar';
+          subtitle.style.cursor = 'pointer';
+          subtitle.onclick = function() { location.reload(); };
+        }
+      }
+    }, 8000);
+
+    // After 12s FORCE remove splash — NEVER stay stuck
+    setTimeout(removeSplash, 12000);
+  </script>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
