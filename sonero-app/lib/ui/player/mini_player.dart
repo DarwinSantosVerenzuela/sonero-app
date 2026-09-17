@@ -298,8 +298,6 @@ class MiniPlayer extends StatelessWidget {
             flex: 1,
             child: Row(
               children: [
-                sidebarToggle,
-                const SizedBox(width: 8),
                 Container(
                   width: 56,
                   height: 56,
