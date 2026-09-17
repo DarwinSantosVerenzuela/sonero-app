@@ -93,12 +93,12 @@ class MobileExpandedPlayer extends StatelessWidget {
                         width: 34,
                         height: 34,
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.15),
+                          color: Colors.white.withValues(alpha: 0.75),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: IconButton(
                           icon: const Icon(Icons.keyboard_arrow_down_rounded,
-                              color: Colors.white, size: 20),
+                              color: Colors.black, size: 20),
                           onPressed: () => Navigator.of(context).pop(),
                           padding: EdgeInsets.zero,
                         ),
@@ -116,12 +116,12 @@ class MobileExpandedPlayer extends StatelessWidget {
                         width: 34,
                         height: 34,
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.15),
+                          color: Colors.white.withValues(alpha: 0.75),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: IconButton(
                           icon: const Icon(Icons.more_horiz_rounded,
-                              color: Colors.white, size: 18),
+                              color: Colors.black, size: 18),
                           onPressed: () => _showMoreOptions(context, player, track),
                           padding: EdgeInsets.zero,
                         ),
