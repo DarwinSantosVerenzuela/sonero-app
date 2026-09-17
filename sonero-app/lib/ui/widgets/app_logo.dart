@@ -1,6 +1,4 @@
-import 'dart:io';
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/settings_provider.dart';
@@ -20,41 +18,19 @@ class AppLogo extends StatelessWidget {
 
     Widget image;
 
-    if (customPath.isNotEmpty) {
-      if (customPath.startsWith('data:') || customPath.startsWith('/9j/') || customPath.startsWith('iVBOR')) {
-        // Base64 encoded image (web upload)
-        try {
-          final base64Data = customPath.contains(',')
-              ? customPath.split(',').last
-              : customPath;
-          image = Image.memory(
-            base64Decode(base64Data),
-            width: size,
-            height: size,
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => _defaultLogo(),
-          );
-        } catch (_) {
-          image = _defaultLogo();
-        }
-      } else if (!kIsWeb) {
-        // File path (native)
-        image = Image.file(
-          File(customPath),
+    if (customPath.isNotEmpty && customPath.startsWith('data:')) {
+      // Base64 data URI
+      try {
+        final base64Data = customPath.split(',').last;
+        image = Image.memory(
+          base64Decode(base64Data),
           width: size,
           height: size,
           fit: BoxFit.cover,
           errorBuilder: (_, __, ___) => _defaultLogo(),
         );
-      } else {
-        // Web URL or network
-        image = Image.network(
-          customPath,
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _defaultLogo(),
-        );
+      } catch (_) {
+        image = _defaultLogo();
       }
     } else {
       image = _defaultLogo();

@@ -110,7 +110,6 @@ class _SettingsPageState extends State<SettingsPage> {
       return Image.asset('assets/images/logo.png', width: size, height: size, fit: BoxFit.cover);
     }
     if (path.startsWith('data:')) {
-      // data URI from web upload
       try {
         final b64 = path.split(',').last;
         return Image.memory(
@@ -122,32 +121,23 @@ class _SettingsPageState extends State<SettingsPage> {
         return Image.asset('assets/images/logo.png', width: size, height: size, fit: BoxFit.cover);
       }
     }
-    // Native file path — only on non-web
-    if (!kIsWeb) {
-      return Image.file(
-        File(path),
-        width: size, height: size, fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => Image.asset('assets/images/logo.png', width: size, height: size, fit: BoxFit.cover),
-      );
-    }
+    // Fallback for any other stored path — just show default
     return Image.asset('assets/images/logo.png', width: size, height: size, fit: BoxFit.cover);
   }
 
   Future<void> _pickLogoImage(SettingsProvider settings) async {
     try {
-      final result = await FilePicker.platform.pickFiles(
+      final result = await FilePicker.pickFiles(
         type: FileType.image,
         allowMultiple: false,
-        withData: kIsWeb, // need bytes on web
+        withData: true,
       );
       if (result != null && result.files.isNotEmpty) {
         final file = result.files.first;
-        if (kIsWeb && file.bytes != null) {
+        if (file.bytes != null) {
           final b64 = base64Encode(file.bytes!);
           final ext = file.extension ?? 'png';
           settings.setCustomLogoPath('data:image/$ext;base64,$b64');
-        } else if (!kIsWeb && file.path != null) {
-          settings.setCustomLogoPath(file.path!);
         }
       }
     } catch (e) {
