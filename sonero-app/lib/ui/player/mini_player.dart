@@ -23,7 +23,7 @@ class MiniPlayer extends StatelessWidget {
 
     // ── Shared: sidebar toggle button ──────────────────────────────────────
     final sidebarToggle = HoverScale(
-      scale: 1.15,
+      scale: 1.03,
       child: IconButton(
         icon: Icon(
           player.isSidebarVisible
@@ -373,7 +373,7 @@ class MiniPlayer extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                     HoverScale(
-                            scale: 1.15,
+                            scale: 1.03,
                             child: IconButton(
                               icon: Icon(
                                 Icons.keyboard_arrow_up_rounded,
@@ -396,7 +396,7 @@ class MiniPlayer extends StatelessWidget {
                           ),
                           const SizedBox(width: 2),
                           HoverScale(
-                            scale: 1.15,
+                            scale: 1.03,
                             child: IconButton(
                               icon: Icon(
                                 Icons.shuffle_rounded,
@@ -414,7 +414,7 @@ class MiniPlayer extends StatelessWidget {
                           ),
                           const SizedBox(width: 4),
                           HoverScale(
-                            scale: 1.15,
+                            scale: 1.03,
                             child: IconButton(
                               icon: Icon(Icons.skip_previous_rounded,
                                   color: context.colors.textPrimary, size: 26),
@@ -430,7 +430,7 @@ class MiniPlayer extends StatelessWidget {
                     ),
                     const SizedBox(width: 4),
                     HoverScale(
-                      scale: 1.15,
+                      scale: 1.03,
                       child: IconButton(
                         icon: Icon(
                           player.isPlaying
@@ -451,7 +451,7 @@ class MiniPlayer extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.start,
                         children: [
                           HoverScale(
-                            scale: 1.15,
+                            scale: 1.03,
                             child: IconButton(
                               icon: Icon(Icons.skip_next_rounded,
                                   color: context.colors.textPrimary, size: 26),
@@ -464,7 +464,7 @@ class MiniPlayer extends StatelessWidget {
                           ),
                           const SizedBox(width: 4),
                           HoverScale(
-                            scale: 1.15,
+                            scale: 1.03,
                             child: IconButton(
                               icon: Icon(
                                 player.repeatMode == PlaylistMode.single
@@ -485,7 +485,7 @@ class MiniPlayer extends StatelessWidget {
                           if (player.isVideo) ...[
                             const SizedBox(width: 8),
                             HoverScale(
-                              scale: 1.15,
+                              scale: 1.03,
                               child: IconButton(
                                 icon: Icon(Icons.fullscreen_rounded,
                                     color: context.colors.textSecondary,
@@ -500,7 +500,7 @@ class MiniPlayer extends StatelessWidget {
                           ],
                           const SizedBox(width: 8),
                           HoverScale(
-                            scale: 1.15,
+                            scale: 1.03,
                             child: IconButton(
                               icon: Icon(Icons.lyrics_outlined,
                                   color: context.colors.textSecondary,
@@ -515,7 +515,7 @@ class MiniPlayer extends StatelessWidget {
                           ),
                           const SizedBox(width: 8),
                           HoverScale(
-                            scale: 1.15,
+                            scale: 1.03,
                             child: IconButton(
                               icon: Icon(Icons.equalizer_rounded,
                                   color: context.colors.textSecondary,
