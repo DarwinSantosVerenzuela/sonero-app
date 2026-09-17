@@ -961,6 +961,245 @@ class _TrackListRow extends StatefulWidget {
 class _TrackListRowState extends State<_TrackListRow> {
   bool _hovered = false;
 
+  List<PopupMenuEntry<String>> _buildMenuItems(BuildContext context, Track track) {
+    final library = context.read<LibraryProvider>();
+    final settings = context.read<SettingsProvider>();
+    final playlists = library.playlists
+        .where((p) => !p.isLibrary && p.name != track.playlist)
+        .toList();
+
+    return [
+      const PopupMenuItem(value: '__edit__', child: Text('Editar metadatos')),
+      const PopupMenuItem(value: '__auto__', child: Text('Autocompletar metadatos (API)')),
+      PopupMenuItem(
+        value: '__lyrics__',
+        child: Row(
+          children: [
+            const Expanded(child: Text('Descargar letra')),
+            if (LyricsService.hasLocal(settings.musicFolder, track.filename))
+              Icon(Icons.offline_pin_rounded, size: 16, color: Colors.green.shade400),
+          ],
+        ),
+      ),
+      PopupMenuItem(
+        value: '__delete__',
+        child: Text('Eliminar archivo', style: TextStyle(color: context.colors.error)),
+      ),
+      const PopupMenuDivider(),
+      PopupMenuItem(enabled: false,
+        child: Text('Mover a...',
+            style: TextStyle(
+                color: context.colors.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w600)),
+      ),
+      if (track.playlist.isNotEmpty)
+        const PopupMenuItem(value: '__root__', child: Text('Biblioteca (raíz)')),
+      ...playlists.map(
+        (pl) => PopupMenuItem(value: pl.name, child: Text(pl.name)),
+      ),
+      const PopupMenuDivider(),
+      const PopupMenuItem(
+        value: '__new_playlist__',
+        child: Row(
+          children: [
+            Icon(Icons.playlist_add_rounded, size: 18),
+            SizedBox(width: 8),
+            Text('Crear lista de reproducción'),
+          ],
+        ),
+      ),
+      const PopupMenuItem(
+        value: '__new_album__',
+        child: Row(
+          children: [
+            Icon(Icons.album_rounded, size: 18),
+            SizedBox(width: 8),
+            Text('Crear álbum'),
+          ],
+        ),
+      ),
+    ];
+  }
+
+  void _handleMenuAction(BuildContext context, Track track, String action) {
+    final renderBox = context.findRenderObject() as RenderBox;
+    final position = renderBox.localToGlobal(Offset(renderBox.size.width, renderBox.size.height / 2));
+    // Delegate to existing handler
+    _handleTrackAction(context, track, action);
+  }
+
+  Future<void> _handleTrackAction(BuildContext context, Track track, String action) async {
+    final library = context.read<LibraryProvider>();
+    final settings = context.read<SettingsProvider>();
+
+    if (action == '__edit__') {
+      final changed = await showDialog<bool>(
+        context: context,
+        builder: (_) => MetadataDialog(track: track),
+      );
+      if (changed == true && context.mounted) {
+        context.read<LibraryProvider>().loadTracks(settings.api);
+      }
+      return;
+    }
+
+    if (action == '__auto__') {
+      try {
+        final jobId = await settings.api.autoFillMetadata([track.filename]);
+        if (context.mounted) {
+          await showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (ctx) => _AutofillProgressDialog(jobId: jobId, settings: settings),
+          );
+          context.read<LibraryProvider>().loadTracks(settings.api);
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: context.colors.error,
+          ));
+        }
+      }
+      return;
+    }
+
+    if (action == '__lyrics__') {
+      try {
+        final result = await settings.api.saveLyrics(
+          filename: track.filename,
+          title: track.title.isNotEmpty ? track.title : track.filename,
+          artist: track.artist,
+        );
+        if (context.mounted) {
+          if (result['saved'] == true) {
+            final musicFolder = settings.musicFolder;
+            if (musicFolder.isNotEmpty) {
+              final syncedContent = result['synced'] as String?;
+              final plainContent = result['plain'] as String?;
+              if (syncedContent != null && syncedContent.trim().isNotEmpty) {
+                await LyricsService.saveLrc(musicFolder, track.filename, syncedContent);
+              } else if (plainContent != null && plainContent.trim().isNotEmpty) {
+                await LyricsService.saveTxt(musicFolder, track.filename, plainContent);
+              }
+            }
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text('Letra guardada (${result['type'] == 'synced' ? 'sincronizada' : 'texto plano'})'),
+                backgroundColor: context.colors.success,
+                duration: const Duration(seconds: 3),
+              ));
+            }
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(result['error'] ?? 'No se pudo descargar la letra.'),
+              backgroundColor: context.colors.error,
+            ));
+          }
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: context.colors.error,
+          ));
+        }
+      }
+      return;
+    }
+
+    if (action == '__delete__') {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Eliminar canción'),
+          content: Text('¿Seguro que quieres eliminar "${track.title.isNotEmpty ? track.title : track.filename}"?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancelar')),
+            TextButton(onPressed: () => Navigator.of(context).pop(true),
+              child: Text('Eliminar', style: TextStyle(color: context.colors.error))),
+          ],
+        ),
+      );
+      if (confirm == true) {
+        try {
+          await library.deleteTrack(settings.api, track);
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: const Text('Archivo eliminado'),
+              backgroundColor: context.colors.success,
+            ));
+          }
+        } catch (e) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: context.colors.error));
+          }
+        }
+      }
+      return;
+    }
+
+    if (action == '__new_playlist__') {
+      final name = await showDialog<String>(
+        context: context,
+        builder: (_) => _NameInputDialog(title: 'Nueva lista de reproducción', hint: 'Nombre de la lista'),
+      );
+      if (name != null && name.trim().isNotEmpty && context.mounted) {
+        try {
+          await library.createPlaylist(settings.api, name.trim());
+          await library.moveTrack(settings.api, track, name.trim());
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text('Lista "$name" creada'),
+              backgroundColor: context.colors.success,
+            ));
+          }
+        } catch (e) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: context.colors.error));
+          }
+        }
+      }
+      return;
+    }
+
+    if (action == '__new_album__') {
+      final name = await showDialog<String>(
+        context: context,
+        builder: (_) => _NameInputDialog(title: 'Nuevo álbum', hint: 'Nombre del álbum'),
+      );
+      if (name != null && name.trim().isNotEmpty && context.mounted) {
+        try {
+          await library.createPlaylist(settings.api, name.trim());
+          await library.moveTrack(settings.api, track, name.trim());
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text('Álbum "$name" creado'),
+              backgroundColor: context.colors.success,
+            ));
+          }
+        } catch (e) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: context.colors.error));
+          }
+        }
+      }
+      return;
+    }
+
+    // Move to playlist
+    final toPlaylist = action == '__root__' ? null : action;
+    await library.moveTrack(settings.api, track, toPlaylist);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Movida a ${toPlaylist ?? 'Biblioteca'}'),
+        backgroundColor: context.colors.success,
+      ));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final track = widget.track;
@@ -1089,20 +1328,25 @@ class _TrackListRowState extends State<_TrackListRow> {
                   ),
                 ),
               ],
+              // Divider line
+              if (!widget.isMultiSelectMode)
+                Container(
+                  width: 1,
+                  height: 28,
+                  margin: const EdgeInsets.symmetric(horizontal: 8),
+                  color: context.colors.border.withOpacity(0.4),
+                ),
               // Options Menu Button
               if (!widget.isMultiSelectMode)
                 SizedBox(
-                  width: 32,
-                  height: 32,
-                  child: IconButton(
+                  width: 36,
+                  height: 36,
+                  child: PopupMenuButton<String>(
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
                     icon: Icon(Icons.more_horiz, size: 20, color: context.colors.textSecondary),
-                    onPressed: () {
-                      final renderBox = context.findRenderObject() as RenderBox;
-                      final position = renderBox.localToGlobal(Offset(renderBox.size.width, renderBox.size.height / 2));
-                      _showTrackContextMenu(context, track, position);
-                    },
+                    color: context.colors.surfaceAlt,
+                    onSelected: (action) => _handleMenuAction(context, track, action),
+                    itemBuilder: (_) => _buildMenuItems(context, track),
                   ),
                 ),
             ],
