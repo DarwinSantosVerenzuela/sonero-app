@@ -26,7 +26,7 @@ class _MobileExpandedPlayerState extends State<MobileExpandedPlayer> with Single
     _scrollController = ScrollController();
     _marqueeController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 10),
+      duration: const Duration(seconds: 20),
     );
     _marqueeController.addListener(_onMarqueeTick);
     // Start after first frame so layout is done
@@ -219,7 +219,7 @@ class _MobileExpandedPlayerState extends State<MobileExpandedPlayer> with Single
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       SizedBox(
-                        height: 28,
+                        height: 32,
                         child: SingleChildScrollView(
                           controller: _scrollController,
                           scrollDirection: Axis.horizontal,
@@ -227,7 +227,7 @@ class _MobileExpandedPlayerState extends State<MobileExpandedPlayer> with Single
                           child: Row(
                             children: [
                               Text(
-                                '${track.title.isNotEmpty ? track.title : track.filename}     •     ${track.title.isNotEmpty ? track.title : track.filename}     •     ',
+                                '${track.title.isNotEmpty ? track.title : track.filename}                              ${track.title.isNotEmpty ? track.title : track.filename}                              ',
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 22,
