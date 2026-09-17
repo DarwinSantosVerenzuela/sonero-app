@@ -1345,26 +1345,31 @@ class _TrackListRowState extends State<_TrackListRow> {
                 margin: const EdgeInsets.symmetric(horizontal: 8),
                 color: context.colors.border.withOpacity(0.4),
               ),
-              GestureDetector(
-                onTap: () {
-                  final RenderBox box = context.findRenderObject() as RenderBox;
-                  final Offset offset = box.localToGlobal(Offset(box.size.width, box.size.height / 2));
-                  showMenu<String>(
-                    context: context,
-                    position: RelativeRect.fromLTRB(offset.dx - 200, offset.dy, offset.dx, offset.dy + 300),
-                    color: context.colors.surfaceAlt,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    items: _buildMenuItems(context, track),
-                  ).then((action) {
-                    if (action != null) {
-                      _handleMenuAction(context, track, action);
-                    }
-                  });
+              Builder(
+                builder: (dotContext) {
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(20),
+                    onTap: () {
+                      final RenderBox box = dotContext.findRenderObject() as RenderBox;
+                      final Offset pos = box.localToGlobal(Offset(box.size.width, box.size.height));
+                      showMenu<String>(
+                        context: dotContext,
+                        position: RelativeRect.fromLTRB(pos.dx - 220, pos.dy, pos.dx, pos.dy),
+                        color: context.colors.surfaceAlt,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        items: _buildMenuItems(context, track),
+                      ).then((action) {
+                        if (action != null) {
+                          _handleMenuAction(context, track, action);
+                        }
+                      });
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: Icon(Icons.more_horiz, size: 20, color: context.colors.textSecondary),
+                    ),
+                  );
                 },
-                child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Icon(Icons.more_horiz, size: 20, color: context.colors.textSecondary),
-                ),
               ),
             ],
           ],
