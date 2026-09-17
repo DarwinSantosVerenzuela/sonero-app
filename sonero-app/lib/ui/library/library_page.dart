@@ -1234,17 +1234,19 @@ class _TrackListRowState extends State<_TrackListRow> {
             _showTrackContextMenu(context, track, d.globalPosition);
           }
         },
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
             color: widget.isSelected
                 ? Theme.of(context).colorScheme.primary.withOpacity(0.12)
-                : (_hovered ? context.colors.surfaceAlt : Colors.transparent),
-            border: Border(
-              bottom: BorderSide(
-                color: context.colors.border.withOpacity(0.2),
-                width: 0.5,
-              ),
+                : (_hovered ? context.colors.surfaceAlt : context.colors.surface),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: widget.isSelected
+                  ? Theme.of(context).colorScheme.primary
+                  : (_hovered ? Theme.of(context).colorScheme.primary.withOpacity(0.3) : context.colors.border),
             ),
           ),
           child: Row(
@@ -1326,7 +1328,15 @@ class _TrackListRowState extends State<_TrackListRow> {
                   ),
                 ),
               ],
-              // Three dots only (no box)
+              // Divider line
+              if (!widget.isMultiSelectMode)
+                Container(
+                  width: 1,
+                  height: 28,
+                  margin: const EdgeInsets.symmetric(horizontal: 8),
+                  color: context.colors.border.withOpacity(0.4),
+                ),
+              // Three dots only — no box wrapper
               if (!widget.isMultiSelectMode)
                 PopupMenuButton<String>(
                   padding: EdgeInsets.zero,
