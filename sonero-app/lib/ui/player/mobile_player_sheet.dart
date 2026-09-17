@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:media_kit/media_kit.dart' hide Track;
@@ -8,8 +9,44 @@ import '../widgets/track_cover_image.dart';
 import 'lyrics_view.dart';
 import 'equalizer_view.dart';
 
-class MobileExpandedPlayer extends StatelessWidget {
+class MobileExpandedPlayer extends StatefulWidget {
   const MobileExpandedPlayer({super.key});
+
+  @override
+  State<MobileExpandedPlayer> createState() => _MobileExpandedPlayerState();
+}
+
+class _MobileExpandedPlayerState extends State<MobileExpandedPlayer> with SingleTickerProviderStateMixin {
+  late final ScrollController _scrollController;
+  Timer? _scrollTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    _startMarquee();
+  }
+
+  void _startMarquee() {
+    _scrollTimer = Timer.periodic(const Duration(milliseconds: 50), (_) {
+      if (!_scrollController.hasClients) return;
+      final max = _scrollController.position.maxScrollExtent;
+      if (max <= 0) return;
+      final current = _scrollController.offset;
+      if (current >= max) {
+        _scrollController.jumpTo(0);
+      } else {
+        _scrollController.jumpTo(current + 0.8);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollTimer?.cancel();
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -142,7 +179,7 @@ class MobileExpandedPlayer extends StatelessWidget {
                         width: 260,
                         height: 260,
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
+                          shape: BoxShape.circle,
                           color: context.colors.surface,
                           boxShadow: [
                             BoxShadow(
@@ -176,20 +213,29 @@ class MobileExpandedPlayer extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Text(
-                        track.title.isNotEmpty ? track.title : track.filename,
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 22,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -0.5,
-                          shadows: [
-                            Shadow(color: Colors.black.withValues(alpha: 0.8), blurRadius: 6),
-                            Shadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 12),
-                          ],
+                      SizedBox(
+                        height: 28,
+                        child: SingleChildScrollView(
+                          controller: _scrollController,
+                          scrollDirection: Axis.horizontal,
+                          physics: const NeverScrollableScrollPhysics(),
+                          child: Row(
+                            children: [
+                              Text(
+                                '${track.title.isNotEmpty ? track.title : track.filename}     •     ${track.title.isNotEmpty ? track.title : track.filename}     •     ',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: -0.5,
+                                  shadows: [
+                                    Shadow(color: Colors.black.withValues(alpha: 0.8), blurRadius: 6),
+                                    Shadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 12),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                       const SizedBox(height: 6),

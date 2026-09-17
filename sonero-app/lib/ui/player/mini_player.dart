@@ -251,26 +251,34 @@ class MiniPlayer extends StatelessWidget {
                         ),
                       ),
                     ),
-                    SizedBox(
+                    Container(
                       width: 36,
                       height: 36,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.75),
+                        shape: BoxShape.circle,
+                      ),
                       child: IconButton(
                         icon: Icon(
                           player.isPlaying
                               ? Icons.pause_rounded
                               : Icons.play_arrow_rounded,
-                          color: Theme.of(context).colorScheme.primary,
-                          size: 24,
+                          color: Colors.black,
+                          size: 22,
                         ),
                         onPressed: player.playPause,
                         padding: EdgeInsets.zero,
                       ),
                     ),
-                    SizedBox(
+                    Container(
                       width: 36,
                       height: 36,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.75),
+                        shape: BoxShape.circle,
+                      ),
                       child: IconButton(
-                        icon: Icon(Icons.skip_next_rounded, color: context.colors.textPrimary, size: 22),
+                        icon: const Icon(Icons.skip_next_rounded, color: Colors.black, size: 20),
                         onPressed: player.next,
                         padding: EdgeInsets.zero,
                       ),
