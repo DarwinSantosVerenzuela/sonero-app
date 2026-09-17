@@ -1208,146 +1208,153 @@ class _TrackListRowState extends State<_TrackListRow> {
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
-        onTap: () async {
-          if (widget.isMultiSelectMode) {
-            widget.onToggled();
-            return;
-          }
-          try {
-            final settings = context.read<SettingsProvider>();
-            await context.read<PlayerProvider>().playTrack(
-                  widget.track, widget.queue, settings);
-          } catch (e) {
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text(e.toString().replaceAll('Exception: ', '')),
-                backgroundColor: context.colors.error,
-                duration: const Duration(seconds: 4),
-              ));
-            }
-          }
-        },
-        onLongPress: widget.onLongPressed,
-        onSecondaryTapUp: (d) {
-          if (!widget.isMultiSelectMode) {
-            _showTrackContextMenu(context, track, d.globalPosition);
-          }
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          margin: const EdgeInsets.only(bottom: 8),
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: widget.isSelected
+              ? Theme.of(context).colorScheme.primary.withOpacity(0.12)
+              : (_hovered ? context.colors.surfaceAlt : context.colors.surface),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
             color: widget.isSelected
-                ? Theme.of(context).colorScheme.primary.withOpacity(0.12)
-                : (_hovered ? context.colors.surfaceAlt : context.colors.surface),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: widget.isSelected
-                  ? Theme.of(context).colorScheme.primary
-                  : (_hovered ? Theme.of(context).colorScheme.primary.withOpacity(0.3) : context.colors.border),
-            ),
+                ? Theme.of(context).colorScheme.primary
+                : (_hovered ? Theme.of(context).colorScheme.primary.withOpacity(0.3) : context.colors.border),
           ),
-          child: Row(
-            children: [
-              if (widget.isMultiSelectMode) ...[
-                Checkbox(
-                  value: widget.isSelected,
-                  onChanged: (_) => widget.onToggled(),
-                  activeColor: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-              ],
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: SizedBox(
-                  width: 48,
-                  height: 48,
-                  child: TrackCoverImage(
-                    coverUrl: track.coverUrl,
-                    width: 48,
-                    height: 48,
-                    fit: BoxFit.cover,
-                    errorWidget: _CoverPlaceholderSmall(isVideo: _isVideo(track)),
-                  ),
-                ),
+        ),
+        child: Row(
+          children: [
+            if (widget.isMultiSelectMode) ...[
+              Checkbox(
+                value: widget.isSelected,
+                onChanged: (_) => widget.onToggled(),
+                activeColor: Theme.of(context).colorScheme.primary,
               ),
-              const SizedBox(width: 16),
-              // Title & Artist
-              Expanded(
-                flex: 3,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
+              const SizedBox(width: 8),
+            ],
+            // ── Tappable area: cover + title (plays track) ──
+            Expanded(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () async {
+                  if (widget.isMultiSelectMode) {
+                    widget.onToggled();
+                    return;
+                  }
+                  try {
+                    final settings = context.read<SettingsProvider>();
+                    await context.read<PlayerProvider>().playTrack(
+                          widget.track, widget.queue, settings);
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text(e.toString().replaceAll('Exception: ', '')),
+                        backgroundColor: context.colors.error,
+                        duration: const Duration(seconds: 4),
+                      ));
+                    }
+                  }
+                },
+                onLongPress: widget.onLongPressed,
+                onSecondaryTapUp: (d) {
+                  if (!widget.isMultiSelectMode) {
+                    _showTrackContextMenu(context, track, d.globalPosition);
+                  }
+                },
+                child: Row(
                   children: [
-                    Text(
-                      track.title.isNotEmpty ? track.title : track.filename,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: context.colors.textPrimary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: SizedBox(
+                        width: 48,
+                        height: 48,
+                        child: TrackCoverImage(
+                          coverUrl: track.coverUrl,
+                          width: 48,
+                          height: 48,
+                          fit: BoxFit.cover,
+                          errorWidget: _CoverPlaceholderSmall(isVideo: _isVideo(track)),
+                        ),
                       ),
                     ),
-                    if (track.artist.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        track.artist,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: context.colors.textSecondary,
-                          fontSize: 12,
+                    const SizedBox(width: 16),
+                    // Title & Artist
+                    Expanded(
+                      flex: 3,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            track.title.isNotEmpty ? track.title : track.filename,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: context.colors.textPrimary,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                          if (track.artist.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              track.artist,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: context.colors.textSecondary,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    if (!isMobile) ...[
+                      // Album
+                      Expanded(
+                        flex: 2,
+                        child: Text(
+                          track.album,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: context.colors.textSecondary, fontSize: 13),
+                        ),
+                      ),
+                      // Year
+                      SizedBox(
+                        width: 60,
+                        child: Text(
+                          track.year,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: context.colors.textSecondary, fontSize: 13),
                         ),
                       ),
                     ],
                   ],
                 ),
               ),
-              if (!isMobile) ...[
-                // Album
-                Expanded(
-                  flex: 2,
-                  child: Text(
-                    track.album,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: context.colors.textSecondary, fontSize: 13),
-                  ),
-                ),
-                // Year
-                SizedBox(
-                  width: 60,
-                  child: Text(
-                    track.year,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: context.colors.textSecondary, fontSize: 13),
-                  ),
-                ),
-              ],
-              // Divider line
-              if (!widget.isMultiSelectMode)
-                Container(
-                  width: 1,
-                  height: 28,
-                  margin: const EdgeInsets.symmetric(horizontal: 8),
-                  color: context.colors.border.withOpacity(0.4),
-                ),
-              // Three dots only — no box wrapper
-              if (!widget.isMultiSelectMode)
-                PopupMenuButton<String>(
-                  padding: EdgeInsets.zero,
-                  icon: Icon(Icons.more_horiz, size: 20, color: context.colors.textSecondary.withOpacity(0.6)),
-                  color: context.colors.surfaceAlt,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  onSelected: (action) => _handleMenuAction(context, track, action),
-                  itemBuilder: (_) => _buildMenuItems(context, track),
-                ),
+            ),
+            // ── Divider + Three dots: OUTSIDE GestureDetector ──
+            if (!widget.isMultiSelectMode) ...[
+              Container(
+                width: 1,
+                height: 28,
+                margin: const EdgeInsets.symmetric(horizontal: 8),
+                color: context.colors.border.withOpacity(0.4),
+              ),
+              PopupMenuButton<String>(
+                padding: EdgeInsets.zero,
+                icon: Icon(Icons.more_horiz, size: 20, color: context.colors.textSecondary.withOpacity(0.6)),
+                color: context.colors.surfaceAlt,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                onSelected: (action) => _handleMenuAction(context, track, action),
+                itemBuilder: (_) => _buildMenuItems(context, track),
+              ),
             ],
-          ),
+          ],
         ),
       ),
     );
