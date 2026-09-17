@@ -154,7 +154,7 @@ class EqualizerView extends StatelessWidget {
     );
   }
 
-  Widget _buildBalanceRow(EqualizerProvider eq, AppColorScheme colors, Color accent) {
+  Widget _buildBalanceRow(EqualizerProvider eq, SoneroColors colors, Color accent) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
