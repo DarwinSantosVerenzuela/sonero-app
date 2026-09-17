@@ -94,7 +94,7 @@ class MobileExpandedPlayer extends StatelessWidget {
                         height: 34,
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.75),
-                          borderRadius: BorderRadius.circular(10),
+                          shape: BoxShape.circle,
                         ),
                         child: IconButton(
                           icon: const Icon(Icons.keyboard_arrow_down_rounded,
@@ -117,7 +117,7 @@ class MobileExpandedPlayer extends StatelessWidget {
                         height: 34,
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.75),
-                          borderRadius: BorderRadius.circular(10),
+                          shape: BoxShape.circle,
                         ),
                         child: IconButton(
                           icon: const Icon(Icons.more_horiz_rounded,
