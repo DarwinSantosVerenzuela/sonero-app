@@ -1091,14 +1091,19 @@ class _TrackListRowState extends State<_TrackListRow> {
               ],
               // Options Menu Button
               if (!widget.isMultiSelectMode)
-                IconButton(
-                  icon: const Icon(Icons.more_horiz),
-                  color: context.colors.textSecondary,
-                  onPressed: () {
-                    final renderBox = context.findRenderObject() as RenderBox;
-                    final position = renderBox.localToGlobal(Offset(renderBox.size.width, renderBox.size.height / 2));
-                    _showTrackContextMenu(context, track, position);
-                  },
+                SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    icon: Icon(Icons.more_horiz, size: 20, color: context.colors.textSecondary),
+                    onPressed: () {
+                      final renderBox = context.findRenderObject() as RenderBox;
+                      final position = renderBox.localToGlobal(Offset(renderBox.size.width, renderBox.size.height / 2));
+                      _showTrackContextMenu(context, track, position);
+                    },
+                  ),
                 ),
             ],
           ),
@@ -1164,6 +1169,7 @@ void _showTrackContextMenu(BuildContext context, Track track, Offset position) a
         child: Text('Eliminar archivo', style: TextStyle(color: context.colors.error)),
       ),
       const PopupMenuDivider(),
+      // ── Organizar ──
       PopupMenuItem(enabled: false,
         child: Text('Mover a...',
             style: TextStyle(
@@ -1178,6 +1184,27 @@ void _showTrackContextMenu(BuildContext context, Track track, Offset position) a
       // Move to each playlist
       ...playlists.map(
         (pl) => PopupMenuItem(value: pl.name, child: Text(pl.name)),
+      ),
+      const PopupMenuDivider(),
+      const PopupMenuItem(
+        value: '__new_playlist__',
+        child: Row(
+          children: [
+            Icon(Icons.playlist_add_rounded, size: 18),
+            SizedBox(width: 8),
+            Text('Crear lista de reproducción'),
+          ],
+        ),
+      ),
+      const PopupMenuItem(
+        value: '__new_album__',
+        child: Row(
+          children: [
+            Icon(Icons.album_rounded, size: 18),
+            SizedBox(width: 8),
+            Text('Crear álbum'),
+          ],
+        ),
       ),
     ],
   );
@@ -1312,6 +1339,68 @@ void _showTrackContextMenu(BuildContext context, Track track, Offset position) a
       return;
     }
 
+    if (action == '__new_playlist__') {
+      final name = await showDialog<String>(
+        context: context,
+        builder: (_) => _NameInputDialog(
+          title: 'Nueva lista de reproducción',
+          hint: 'Nombre de la lista',
+        ),
+      );
+      if (name != null && name.trim().isNotEmpty && context.mounted) {
+        try {
+          await library.createPlaylist(settings.api, name.trim());
+          await library.moveTrack(settings.api, track, name.trim());
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text('Lista "$name" creada y canción movida'),
+              backgroundColor: context.colors.success,
+              duration: const Duration(seconds: 2),
+            ));
+          }
+        } catch (e) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text('Error: $e'),
+              backgroundColor: context.colors.error,
+            ));
+          }
+        }
+      }
+      return;
+    }
+
+    if (action == '__new_album__') {
+      final name = await showDialog<String>(
+        context: context,
+        builder: (_) => _NameInputDialog(
+          title: 'Nuevo álbum',
+          hint: 'Nombre del álbum',
+        ),
+      );
+      if (name != null && name.trim().isNotEmpty && context.mounted) {
+        try {
+          await library.createPlaylist(settings.api, name.trim());
+          await library.moveTrack(settings.api, track, name.trim());
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text('Álbum "$name" creado y canción movida'),
+              backgroundColor: context.colors.success,
+              duration: const Duration(seconds: 2),
+            ));
+          }
+        } catch (e) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text('Error: $e'),
+              backgroundColor: context.colors.error,
+            ));
+          }
+        }
+      }
+      return;
+    }
+
     final toPlaylist = action == '__root__' ? null : action;
     await library.moveTrack(settings.api, track, toPlaylist);
     if (context.mounted) {
@@ -1323,6 +1412,50 @@ void _showTrackContextMenu(BuildContext context, Track track, Offset position) a
       ));
     }
   }
+}
+
+// ── Name Input Dialog ─────────────────────────────────────────────────────────
+class _NameInputDialog extends StatefulWidget {
+  final String title;
+  final String hint;
+  const _NameInputDialog({required this.title, required this.hint});
+
+  @override
+  State<_NameInputDialog> createState() => _NameInputDialogState();
+}
+
+class _NameInputDialogState extends State<_NameInputDialog> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text(widget.title),
+    content: TextField(
+      controller: _controller,
+      autofocus: true,
+      decoration: InputDecoration(
+        hintText: widget.hint,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      onSubmitted: (_) => Navigator.of(context).pop(_controller.text),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.of(context).pop(),
+        child: const Text('Cancelar'),
+      ),
+      TextButton(
+        onPressed: () => Navigator.of(context).pop(_controller.text),
+        child: const Text('Crear'),
+      ),
+    ],
+  );
 }
 
 // ── Helper: detect video by extension ────────────────────────────────────────
