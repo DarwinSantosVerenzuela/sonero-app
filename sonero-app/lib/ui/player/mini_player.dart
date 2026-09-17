@@ -251,37 +251,29 @@ class MiniPlayer extends StatelessWidget {
                         ),
                       ),
                     ),
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.75),
-                        shape: BoxShape.circle,
+                    IconButton(
+                      icon: Icon(
+                        player.isPlaying
+                            ? Icons.pause_rounded
+                            : Icons.play_arrow_rounded,
+                        color: context.colors.textPrimary,
+                        size: 24,
                       ),
-                      child: IconButton(
-                        icon: Icon(
-                          player.isPlaying
-                              ? Icons.pause_rounded
-                              : Icons.play_arrow_rounded,
-                          color: Colors.black,
-                          size: 22,
-                        ),
-                        onPressed: player.playPause,
-                        padding: EdgeInsets.zero,
-                      ),
+                      onPressed: player.playPause,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                     ),
                     Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.75),
-                        shape: BoxShape.circle,
-                      ),
-                      child: IconButton(
-                        icon: const Icon(Icons.skip_next_rounded, color: Colors.black, size: 20),
-                        onPressed: player.next,
-                        padding: EdgeInsets.zero,
-                      ),
+                      width: 1,
+                      height: 20,
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      color: context.colors.border.withOpacity(0.3),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.skip_next_rounded, color: context.colors.textPrimary, size: 22),
+                      onPressed: player.next,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                     ),
                   ],
                 ),

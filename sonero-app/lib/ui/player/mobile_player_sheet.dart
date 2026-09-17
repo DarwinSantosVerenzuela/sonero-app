@@ -233,6 +233,7 @@ class _MobileExpandedPlayerState extends State<MobileExpandedPlayer> with Single
                                   fontSize: 22,
                                   fontWeight: FontWeight.w700,
                                   letterSpacing: -0.5,
+                                  decoration: TextDecoration.none,
                                   shadows: [
                                     Shadow(color: Colors.black.withValues(alpha: 0.8), blurRadius: 6),
                                     Shadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 12),
@@ -253,6 +254,7 @@ class _MobileExpandedPlayerState extends State<MobileExpandedPlayer> with Single
                             color: Colors.white.withValues(alpha: 0.85),
                             fontSize: 16,
                             fontWeight: FontWeight.w500,
+                            decoration: TextDecoration.none,
                             shadows: [
                               Shadow(color: Colors.black.withValues(alpha: 0.7), blurRadius: 4),
                             ],
