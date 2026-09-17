@@ -104,6 +104,57 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  Widget _buildLogoPreview(SettingsProvider settings, double size) {
+    final path = settings.customLogoPath;
+    if (path.isEmpty) {
+      return Image.asset('assets/images/logo.png', width: size, height: size, fit: BoxFit.cover);
+    }
+    if (path.startsWith('data:')) {
+      // data URI from web upload
+      try {
+        final b64 = path.split(',').last;
+        return Image.memory(
+          base64Decode(b64),
+          width: size, height: size, fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Image.asset('assets/images/logo.png', width: size, height: size, fit: BoxFit.cover),
+        );
+      } catch (_) {
+        return Image.asset('assets/images/logo.png', width: size, height: size, fit: BoxFit.cover);
+      }
+    }
+    // Native file path — only on non-web
+    if (!kIsWeb) {
+      return Image.file(
+        File(path),
+        width: size, height: size, fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => Image.asset('assets/images/logo.png', width: size, height: size, fit: BoxFit.cover),
+      );
+    }
+    return Image.asset('assets/images/logo.png', width: size, height: size, fit: BoxFit.cover);
+  }
+
+  Future<void> _pickLogoImage(SettingsProvider settings) async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        allowMultiple: false,
+        withData: kIsWeb, // need bytes on web
+      );
+      if (result != null && result.files.isNotEmpty) {
+        final file = result.files.first;
+        if (kIsWeb && file.bytes != null) {
+          final b64 = base64Encode(file.bytes!);
+          final ext = file.extension ?? 'png';
+          settings.setCustomLogoPath('data:image/$ext;base64,$b64');
+        } else if (!kIsWeb && file.path != null) {
+          settings.setCustomLogoPath(file.path!);
+        }
+      }
+    } catch (e) {
+      debugPrint('Logo pick error: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
@@ -416,38 +467,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(14),
-                    child: settings.customLogoPath.isNotEmpty
-                        ? (kIsWeb
-                            ? Image.network(
-                                settings.customLogoPath,
-                                width: 56,
-                                height: 56,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Image.asset(
-                                  'assets/images/logo.png',
-                                  width: 56,
-                                  height: 56,
-                                  fit: BoxFit.cover,
-                                ),
-                              )
-                            : Image.file(
-                                File(settings.customLogoPath),
-                                width: 56,
-                                height: 56,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Image.asset(
-                                  'assets/images/logo.png',
-                                  width: 56,
-                                  height: 56,
-                                  fit: BoxFit.cover,
-                                ),
-                              ))
-                        : Image.asset(
-                            'assets/images/logo.png',
-                            width: 56,
-                            height: 56,
-                            fit: BoxFit.cover,
-                          ),
+                    child: _buildLogoPreview(settings, 56),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -481,29 +501,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                               textStyle: const TextStyle(fontSize: 12),
                             ),
-                            onPressed: () async {
-                              final result = await FilePicker.platform.pickFiles(
-                                type: FileType.image,
-                                allowMultiple: false,
-                              );
-                              if (result != null && result.files.isNotEmpty) {
-                                final file = result.files.first;
-                                if (kIsWeb) {
-                                  // On web, store as data URI
-                                  if (file.bytes != null) {
-                                    final b64 = base64Encode(file.bytes!);
-                                    final ext = file.extension ?? 'png';
-                                    final dataUri = 'data:image/$ext;base64,$b64';
-                                    settings.setCustomLogoPath(dataUri);
-                                  }
-                                } else {
-                                  // On native, store the file path
-                                  if (file.path != null) {
-                                    settings.setCustomLogoPath(file.path!);
-                                  }
-                                }
-                              }
-                            },
+                            onPressed: () => _pickLogoImage(settings),
                           ),
                           if (settings.customLogoPath.isNotEmpty) ...[
                             const SizedBox(width: 8),
