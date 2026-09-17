@@ -1234,19 +1234,17 @@ class _TrackListRowState extends State<_TrackListRow> {
             _showTrackContextMenu(context, track, d.globalPosition);
           }
         },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          margin: const EdgeInsets.only(bottom: 8),
-          padding: const EdgeInsets.all(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
           decoration: BoxDecoration(
             color: widget.isSelected
                 ? Theme.of(context).colorScheme.primary.withOpacity(0.12)
-                : (_hovered ? context.colors.surfaceAlt : context.colors.surface),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: widget.isSelected
-                  ? Theme.of(context).colorScheme.primary
-                  : (_hovered ? Theme.of(context).colorScheme.primary.withOpacity(0.3) : context.colors.border),
+                : (_hovered ? context.colors.surfaceAlt : Colors.transparent),
+            border: Border(
+              bottom: BorderSide(
+                color: context.colors.border.withOpacity(0.2),
+                width: 0.5,
+              ),
             ),
           ),
           child: Row(
@@ -1328,26 +1326,15 @@ class _TrackListRowState extends State<_TrackListRow> {
                   ),
                 ),
               ],
-              // Divider line
+              // Three dots only (no box)
               if (!widget.isMultiSelectMode)
-                Container(
-                  width: 1,
-                  height: 28,
-                  margin: const EdgeInsets.symmetric(horizontal: 8),
-                  color: context.colors.border.withOpacity(0.4),
-                ),
-              // Options Menu Button
-              if (!widget.isMultiSelectMode)
-                SizedBox(
-                  width: 36,
-                  height: 36,
-                  child: PopupMenuButton<String>(
-                    padding: EdgeInsets.zero,
-                    icon: Icon(Icons.more_horiz, size: 20, color: context.colors.textSecondary),
-                    color: context.colors.surfaceAlt,
-                    onSelected: (action) => _handleMenuAction(context, track, action),
-                    itemBuilder: (_) => _buildMenuItems(context, track),
-                  ),
+                PopupMenuButton<String>(
+                  padding: EdgeInsets.zero,
+                  icon: Icon(Icons.more_horiz, size: 20, color: context.colors.textSecondary.withOpacity(0.6)),
+                  color: context.colors.surfaceAlt,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  onSelected: (action) => _handleMenuAction(context, track, action),
+                  itemBuilder: (_) => _buildMenuItems(context, track),
                 ),
             ],
           ),
