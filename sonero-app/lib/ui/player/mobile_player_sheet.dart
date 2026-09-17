@@ -89,10 +89,19 @@ class MobileExpandedPlayer extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      IconButton(
-                        icon: Icon(Icons.keyboard_arrow_down_rounded,
-                            color: Colors.white.withValues(alpha: 0.9), size: 28),
-                        onPressed: () => Navigator.of(context).pop(),
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: IconButton(
+                          icon: const Icon(Icons.keyboard_arrow_down_rounded,
+                              color: Colors.white, size: 20),
+                          onPressed: () => Navigator.of(context).pop(),
+                          padding: EdgeInsets.zero,
+                        ),
                       ),
                       Text(
                         'Reproduciendo',
@@ -103,10 +112,19 @@ class MobileExpandedPlayer extends StatelessWidget {
                           letterSpacing: 1.0,
                         ),
                       ),
-                      IconButton(
-                        icon: Icon(Icons.more_horiz_rounded,
-                            color: Colors.white.withValues(alpha: 0.9), size: 24),
-                        onPressed: () => _showMoreOptions(context, player, track),
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: IconButton(
+                          icon: const Icon(Icons.more_horiz_rounded,
+                              color: Colors.white, size: 18),
+                          onPressed: () => _showMoreOptions(context, player, track),
+                          padding: EdgeInsets.zero,
+                        ),
                       ),
                     ],
                   ),
@@ -336,7 +354,7 @@ class MobileExpandedPlayer extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.4),
+                      color: const Color(0xFFD0D0D0),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Column(
@@ -348,17 +366,17 @@ class MobileExpandedPlayer extends StatelessWidget {
                               player.volume > 0
                                   ? Icons.volume_up_rounded
                                   : Icons.volume_mute_rounded,
-                              color: Colors.white.withValues(alpha: 0.8),
+                              color: Colors.black87,
                               size: 18,
                             ),
                             Expanded(
                               child: SliderTheme(
-                                data: SliderThemeData(
+                                data: const SliderThemeData(
                                   trackHeight: 3,
-                                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 4),
-                                  activeTrackColor: Colors.white.withValues(alpha: 0.8),
-                                  inactiveTrackColor: Colors.white.withValues(alpha: 0.2),
-                                  thumbColor: Colors.white,
+                                  thumbShape: RoundSliderThumbShape(enabledThumbRadius: 4),
+                                  activeTrackColor: Colors.black87,
+                                  inactiveTrackColor: Colors.black26,
+                                  thumbColor: Colors.black,
                                 ),
                                 child: Slider(
                                   value: player.volume.toDouble().clamp(0.0, 100.0),
@@ -384,12 +402,12 @@ class MobileExpandedPlayer extends StatelessWidget {
                                   track.filename,
                                 );
                               },
-                              icon: Icon(Icons.lyrics_outlined,
-                                  color: Colors.white.withValues(alpha: 0.8), size: 18),
-                              label: Text(
+                              icon: const Icon(Icons.lyrics_outlined,
+                                  color: Colors.black87, size: 18),
+                              label: const Text(
                                 'Letras',
                                 style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.8), fontSize: 12),
+                                    color: Colors.black87, fontSize: 12),
                               ),
                             ),
                             // Video Toggle
@@ -399,12 +417,12 @@ class MobileExpandedPlayer extends StatelessWidget {
                                   Navigator.of(context).pop();
                                   player.setVideoMode(true);
                                 },
-                                icon: Icon(Icons.fullscreen_rounded,
-                                    color: Colors.white.withValues(alpha: 0.8), size: 18),
-                                label: Text(
+                                icon: const Icon(Icons.fullscreen_rounded,
+                                    color: Colors.black87, size: 18),
+                                label: const Text(
                                   'Video',
                                   style: TextStyle(
-                                      color: Colors.white.withValues(alpha: 0.8), fontSize: 12),
+                                      color: Colors.black87, fontSize: 12),
                                 ),
                               ),
                             // Equalizer Button
@@ -413,12 +431,12 @@ class MobileExpandedPlayer extends StatelessWidget {
                                 Navigator.of(context).pop();
                                 showEqualizerDialog(context);
                               },
-                              icon: Icon(Icons.equalizer_rounded,
-                                  color: Colors.white.withValues(alpha: 0.8), size: 18),
-                              label: Text(
+                              icon: const Icon(Icons.equalizer_rounded,
+                                  color: Colors.black87, size: 18),
+                              label: const Text(
                                 'Ecualizador',
                                 style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.8), fontSize: 12),
+                                    color: Colors.black87, fontSize: 12),
                               ),
                             ),
                             // Stop Button
@@ -427,11 +445,11 @@ class MobileExpandedPlayer extends StatelessWidget {
                                 Navigator.of(context).pop();
                                 player.stop();
                               },
-                              icon: const Icon(Icons.stop_rounded,
-                                  color: Colors.redAccent, size: 18),
-                              label: const Text(
+                              icon: Icon(Icons.stop_rounded,
+                                  color: Colors.red.shade700, size: 18),
+                              label: Text(
                                 'Detener',
-                                style: TextStyle(color: Colors.redAccent, fontSize: 12),
+                                style: TextStyle(color: Colors.red.shade700, fontSize: 12),
                               ),
                             ),
                           ],
