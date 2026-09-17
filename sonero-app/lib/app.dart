@@ -234,8 +234,16 @@ class _ShazamAppState extends State<ShazamApp> with TrayListener, WindowListener
             // ── Global mobile density ───────────────────────────────────────
             // Aplica a TODAS las rutas (push, dialog, etc.), no solo AppShell
             builder: (context, child) {
+              // ── Global fix: kill yellow underlines on Flutter Web ──
+              child = DefaultTextStyle(
+                style: DefaultTextStyle.of(context).style.copyWith(
+                  decoration: TextDecoration.none,
+                ),
+                child: child!,
+              );
+
               final isMobile = MediaQuery.of(context).size.width < 600;
-              if (!isMobile) return child!;
+              if (!isMobile) return child;
 
               return MediaQuery(
                 data: MediaQuery.of(context).copyWith(
@@ -285,7 +293,7 @@ class _ShazamAppState extends State<ShazamApp> with TrayListener, WindowListener
                       toolbarHeight: 48,
                     ),
                   ),
-                  child: child!,
+                  child: child,
                 ),
               );
             },

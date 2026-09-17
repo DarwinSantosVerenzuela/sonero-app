@@ -70,7 +70,9 @@ class _QueueCarouselViewState extends State<QueueCarouselView> {
         ? queue.indexWhere((t) => t.filename == current.filename)
         : 0;
 
-    return Container(
+    return DefaultTextStyle(
+      style: const TextStyle(decoration: TextDecoration.none, color: Colors.white),
+      child: Container(
       width: double.infinity,
       height: MediaQuery.of(context).size.height,
       clipBehavior: Clip.antiAlias,
@@ -190,6 +192,7 @@ class _QueueCarouselViewState extends State<QueueCarouselView> {
             ),
           ),
         ],
+      ),
       ),
     );
   }
