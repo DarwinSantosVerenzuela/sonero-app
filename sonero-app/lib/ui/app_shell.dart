@@ -40,6 +40,8 @@ class _AppShellState extends State<AppShell> {
   int _currentViewIndex = 1;
   final TextEditingController _searchController = TextEditingController();
   List<Map<String, dynamic>>? _wifiFilesToSend;
+  bool _isBottomNavVisible = true;
+  double _lastScrollOffset = 0;
 
   @override
   void initState() {
@@ -443,7 +445,23 @@ class _AppShellState extends State<AppShell> {
                         children: [
                           // Main view
                           Positioned.fill(
-                            child: currentView,
+                            child: NotificationListener<ScrollNotification>(
+                              onNotification: (notification) {
+                                if (notification is ScrollUpdateNotification) {
+                                  final delta = notification.scrollDelta ?? 0;
+                                  if (delta > 2 && _isBottomNavVisible) {
+                                    setState(() => _isBottomNavVisible = false);
+                                  } else if (delta < -2 && !_isBottomNavVisible) {
+                                    setState(() => _isBottomNavVisible = true);
+                                  }
+                                }
+                                if (notification is ScrollEndNotification) {
+                                  // Show nav when scroll stops
+                                }
+                                return false;
+                              },
+                              child: currentView,
+                            ),
                           ),
 
                           // Netflix-style Video Overlay (full width)
@@ -467,18 +485,22 @@ class _AppShellState extends State<AppShell> {
         const ListenOverlay(),
         // ── Floating Mini Player Pill (Mobile only) ──────────────────
         if (isMobile && player.currentTrack != null && !player.isVideoMode)
-          Positioned(
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
             left: 0,
             right: 0,
-            bottom: MediaQuery.of(context).padding.bottom + 80,
+            bottom: _isBottomNavVisible ? MediaQuery.of(context).padding.bottom + 80 : -100,
             child: const MiniPlayer(),
           ),
         // ── Floating Pill Bottom Nav (Mobile only) ───────────────────
         if (isMobile)
-          Positioned(
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
             left: 24,
             right: 24,
-            bottom: MediaQuery.of(context).padding.bottom + 12,
+            bottom: _isBottomNavVisible ? MediaQuery.of(context).padding.bottom + 12 : -100,
             child: Container(
               height: 60,
               decoration: BoxDecoration(

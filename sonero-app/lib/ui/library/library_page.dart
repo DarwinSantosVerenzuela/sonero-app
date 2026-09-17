@@ -139,7 +139,6 @@ class _LibraryPageState extends State<LibraryPage>
           );
         }),
 
-        Divider(height: 1, color: context.colors.border),
 
         // ── Content ─────────────────────────────────────────────────────────
         Expanded(
@@ -218,7 +217,7 @@ class _LibraryPageState extends State<LibraryPage>
       top: false,
       child: Container(
         margin: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           color: context.colors.surfaceAlt,
           borderRadius: BorderRadius.circular(16),
@@ -235,9 +234,9 @@ class _LibraryPageState extends State<LibraryPage>
           children: [
             IconButton(
               icon: const Icon(Icons.close),
-              iconSize: 20,
+              iconSize: 26,
               padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
               onPressed: () {
                 setState(() {
                   _isMultiSelectMode = false;
@@ -245,16 +244,16 @@ class _LibraryPageState extends State<LibraryPage>
                 });
               },
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 10),
             Text(
               '${selectedTracks.length} seleccionados',
               style: TextStyle(
                 color: context.colors.textPrimary,
                 fontWeight: FontWeight.bold,
-                fontSize: 13,
+                fontSize: 15,
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 12),
             Expanded(
               child: Align(
                 alignment: Alignment.centerRight,
@@ -265,50 +264,50 @@ class _LibraryPageState extends State<LibraryPage>
                     children: [
                       IconButton(
                         icon: const Icon(Icons.playlist_add),
-                        iconSize: 20,
+                        iconSize: 28,
                         padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
                         color: Theme.of(context).colorScheme.primary,
                         tooltip: 'Añadir a playlist',
                         onPressed: selectedTracks.isEmpty ? null : () => _onBatchAdd(context, library, settings, selectedTracks),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 12),
                       IconButton(
                         icon: const Icon(Icons.drive_file_move_rounded),
-                        iconSize: 20,
+                        iconSize: 28,
                         padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
                         color: Colors.cyan,
                         tooltip: 'Mover a playlist',
                         onPressed: selectedTracks.isEmpty ? null : () => _onBatchMove(context, library, settings, selectedTracks),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 12),
                       IconButton(
                         icon: const Icon(Icons.auto_awesome_rounded),
-                        iconSize: 20,
+                        iconSize: 28,
                         padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
                         color: Colors.orange,
                         tooltip: 'Autocompletar metadatos (API)',
                         onPressed: selectedTracks.isEmpty ? null : () => _onBatchAutocomplete(context, library, settings, selectedTracks),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 12),
                       IconButton(
                         icon: const Icon(Icons.delete_rounded),
-                        iconSize: 20,
+                        iconSize: 28,
                         padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
                         color: context.colors.error,
                         tooltip: 'Eliminar archivos',
                         onPressed: selectedTracks.isEmpty ? null : () => _onBatchDelete(context, library, settings, selectedTracks),
                       ),
                       if (widget.onWiFiShare != null) ...[
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 12),
                         IconButton(
                           icon: const Icon(Icons.wifi_rounded),
-                          iconSize: 20,
+                          iconSize: 28,
                           padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                          constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
                           color: Colors.lightGreen,
                           tooltip: 'Compartir vía WiFi',
                           onPressed: selectedTracks.isEmpty ? null : () => widget.onWiFiShare!(selectedTracks),
@@ -1233,10 +1232,10 @@ class _TrackListRowState extends State<_TrackListRow> {
               ),
               const SizedBox(width: 8),
             ],
-            // ── Tappable area: cover + title (plays track) ──
+            // ── Tappable content area ──
             Expanded(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(8),
                 onTap: () async {
                   if (widget.isMultiSelectMode) {
                     widget.onToggled();
@@ -1257,11 +1256,6 @@ class _TrackListRowState extends State<_TrackListRow> {
                   }
                 },
                 onLongPress: widget.onLongPressed,
-                onSecondaryTapUp: (d) {
-                  if (!widget.isMultiSelectMode) {
-                    _showTrackContextMenu(context, track, d.globalPosition);
-                  }
-                },
                 child: Row(
                   children: [
                     ClipRRect(
@@ -1279,7 +1273,6 @@ class _TrackListRowState extends State<_TrackListRow> {
                       ),
                     ),
                     const SizedBox(width: 16),
-                    // Title & Artist
                     Expanded(
                       flex: 3,
                       child: Column(
@@ -1294,6 +1287,7 @@ class _TrackListRowState extends State<_TrackListRow> {
                               color: context.colors.textPrimary,
                               fontWeight: FontWeight.w600,
                               fontSize: 14,
+                              decoration: TextDecoration.none,
                             ),
                           ),
                           if (track.artist.isNotEmpty) ...[
@@ -1312,7 +1306,6 @@ class _TrackListRowState extends State<_TrackListRow> {
                       ),
                     ),
                     if (!isMobile) ...[
-                      // Album
                       Expanded(
                         flex: 2,
                         child: Text(
@@ -1322,7 +1315,6 @@ class _TrackListRowState extends State<_TrackListRow> {
                           style: TextStyle(color: context.colors.textSecondary, fontSize: 13),
                         ),
                       ),
-                      // Year
                       SizedBox(
                         width: 60,
                         child: Text(
@@ -1337,41 +1329,6 @@ class _TrackListRowState extends State<_TrackListRow> {
                 ),
               ),
             ),
-            // ── Divider + Three dots: OUTSIDE GestureDetector ──
-            if (!widget.isMultiSelectMode) ...[
-              Container(
-                width: 1,
-                height: 28,
-                margin: const EdgeInsets.symmetric(horizontal: 8),
-                color: context.colors.border.withOpacity(0.4),
-              ),
-              Builder(
-                builder: (dotContext) {
-                  return InkWell(
-                    borderRadius: BorderRadius.circular(20),
-                    onTap: () {
-                      final RenderBox box = dotContext.findRenderObject() as RenderBox;
-                      final Offset pos = box.localToGlobal(Offset(box.size.width, box.size.height));
-                      showMenu<String>(
-                        context: dotContext,
-                        position: RelativeRect.fromLTRB(pos.dx - 220, pos.dy, pos.dx, pos.dy),
-                        color: context.colors.surfaceAlt,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        items: _buildMenuItems(context, track),
-                      ).then((action) {
-                        if (action != null) {
-                          _handleMenuAction(context, track, action);
-                        }
-                      });
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.all(10),
-                      child: Icon(Icons.more_horiz, size: 20, color: context.colors.textSecondary),
-                    ),
-                  );
-                },
-              ),
-            ],
           ],
         ),
       ),

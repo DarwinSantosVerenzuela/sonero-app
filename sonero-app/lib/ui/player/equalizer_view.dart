@@ -617,11 +617,17 @@ void showEqualizerDialog(BuildContext context) {
       barrierColor: Colors.black54,
       transitionDuration: const Duration(milliseconds: 350),
       pageBuilder: (_, __, ___) => Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480, maxHeight: 680),
-          child: Material(
-            color: Colors.transparent,
-            child: const EqualizerView(),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 30),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.7,
+              maxHeight: MediaQuery.of(context).size.height * 0.85,
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: const EqualizerView(),
+            ),
           ),
         ),
       ),

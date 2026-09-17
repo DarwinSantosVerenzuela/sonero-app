@@ -300,11 +300,18 @@ class MiniPlayer extends StatelessWidget {
               children: [
                 GestureDetector(
                   onTap: () {
-                    showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (_) => const MobileExpandedPlayer(),
+                    Navigator.of(context).push(
+                      PageRouteBuilder(
+                        opaque: true,
+                        pageBuilder: (_, __, ___) => const MobileExpandedPlayer(),
+                        transitionsBuilder: (_, anim, __, child) {
+                          return SlideTransition(
+                            position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero).animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+                            child: child,
+                          );
+                        },
+                        transitionDuration: const Duration(milliseconds: 350),
+                      ),
                     );
                   },
                   child: Container(
@@ -382,11 +389,18 @@ class MiniPlayer extends StatelessWidget {
                               ),
                               tooltip: 'Reproductor',
                               onPressed: () {
-                                showModalBottomSheet(
-                                  context: context,
-                                  isScrollControlled: true,
-                                  backgroundColor: Colors.transparent,
-                                  builder: (_) => const MobileExpandedPlayer(),
+                                Navigator.of(context).push(
+                                  PageRouteBuilder(
+                                    opaque: true,
+                                    pageBuilder: (_, __, ___) => const MobileExpandedPlayer(),
+                                    transitionsBuilder: (_, anim, __, child) {
+                                      return SlideTransition(
+                                        position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero).animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+                                        child: child,
+                                      );
+                                    },
+                                    transitionDuration: const Duration(milliseconds: 350),
+                                  ),
                                 );
                               },
                               padding: EdgeInsets.zero,
