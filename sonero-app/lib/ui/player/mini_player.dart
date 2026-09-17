@@ -142,27 +142,47 @@ class MiniPlayer extends StatelessWidget {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
 
     if (isMobile) {
-      return Container(
-        height: 62 + bottomPadding,
-        decoration: BoxDecoration(
-          color: context.colors.surfaceAlt,
-          border: Border(top: BorderSide(color: context.colors.border)),
-        ),
-        child: Column(
-          children: [
-            SizedBox(
-              height: 2.0,
-              child: LinearProgressIndicator(
-                value: player.duration.inMilliseconds > 0
-                    ? player.position.inMilliseconds / player.duration.inMilliseconds
-                    : 0.0,
-                backgroundColor: context.colors.border,
-                valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary),
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Container(
+          height: 58,
+          decoration: BoxDecoration(
+            color: context.colors.surface.withOpacity(0.97),
+            borderRadius: BorderRadius.circular(32),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.18),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
               ),
+            ],
+            border: Border.all(
+              color: context.colors.border.withOpacity(0.12),
+              width: 0.5,
             ),
-            Expanded(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(16, 0, 8, bottomPadding),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
+            children: [
+              // Thin progress bar at top
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: SizedBox(
+                  height: 2.5,
+                  child: LinearProgressIndicator(
+                    value: player.duration.inMilliseconds > 0
+                        ? player.position.inMilliseconds / player.duration.inMilliseconds
+                        : 0.0,
+                    backgroundColor: Colors.transparent,
+                    valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary),
+                  ),
+                ),
+              ),
+              // Content
+              Padding(
+                padding: const EdgeInsets.fromLTRB(10, 0, 6, 0),
                 child: Row(
                   children: [
                     Expanded(
@@ -181,11 +201,11 @@ class MiniPlayer extends StatelessWidget {
                             Hero(
                               tag: 'mobile_player_cover',
                               child: Container(
-                                width: 38,
-                                height: 38,
+                                width: 40,
+                                height: 40,
                                 decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(6),
-                                  color: context.colors.surface,
+                                  borderRadius: BorderRadius.circular(10),
+                                  color: context.colors.surfaceAlt,
                                   image: getCoverImageProvider(track.coverUrl) != null
                                       ? DecorationImage(
                                           image: getCoverImageProvider(track.coverUrl)!,
@@ -211,7 +231,7 @@ class MiniPlayer extends StatelessWidget {
                                     style: TextStyle(
                                       color: context.colors.textPrimary,
                                       fontWeight: FontWeight.w600,
-                                      fontSize: 13.5,
+                                      fontSize: 13,
                                     ),
                                   ),
                                   if (track.artist.isNotEmpty)
@@ -221,7 +241,7 @@ class MiniPlayer extends StatelessWidget {
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
                                         color: context.colors.textSecondary,
-                                        fontSize: 11.5,
+                                        fontSize: 11,
                                       ),
                                     ),
                                 ],
@@ -231,29 +251,35 @@ class MiniPlayer extends StatelessWidget {
                         ),
                       ),
                     ),
-                    IconButton(
-                      icon: Icon(
-                        player.isPlaying
-                            ? Icons.pause_rounded
-                            : Icons.play_arrow_rounded,
-                        color: Theme.of(context).colorScheme.primary,
-                        size: 26,
+                    SizedBox(
+                      width: 36,
+                      height: 36,
+                      child: IconButton(
+                        icon: Icon(
+                          player.isPlaying
+                              ? Icons.pause_rounded
+                              : Icons.play_arrow_rounded,
+                          color: Theme.of(context).colorScheme.primary,
+                          size: 24,
+                        ),
+                        onPressed: player.playPause,
+                        padding: EdgeInsets.zero,
                       ),
-                      onPressed: player.playPause,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
                     ),
-                    IconButton(
-                      icon: Icon(Icons.skip_next_rounded, color: context.colors.textPrimary, size: 26),
-                      onPressed: player.next,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                    SizedBox(
+                      width: 36,
+                      height: 36,
+                      child: IconButton(
+                        icon: Icon(Icons.skip_next_rounded, color: context.colors.textPrimary, size: 22),
+                        onPressed: player.next,
+                        padding: EdgeInsets.zero,
+                      ),
                     ),
                   ],
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       );
     }

@@ -457,13 +457,22 @@ class _AppShellState extends State<AppShell> {
                   ],
                 ),
               ),
-              const MiniPlayer(),
-              // Add padding at bottom for mobile pill bar
-              if (isMobile) const SizedBox(height: 70),
+              // Desktop: MiniPlayer in flow
+              if (!isMobile) const MiniPlayer(),
+              // Mobile: add space for floating pill player + nav
+              if (isMobile) const SizedBox(height: 140),
             ],
           ),
         ),
         const ListenOverlay(),
+        // ── Floating Mini Player Pill (Mobile only) ──────────────────
+        if (isMobile && player.currentTrack != null && !player.isVideoMode)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: MediaQuery.of(context).padding.bottom + 80,
+            child: const MiniPlayer(),
+          ),
         // ── Floating Pill Bottom Nav (Mobile only) ───────────────────
         if (isMobile)
           Positioned(
