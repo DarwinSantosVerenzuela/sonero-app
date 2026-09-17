@@ -31,16 +31,20 @@ class MobileExpandedPlayer extends StatelessWidget {
           if (hasCover && getCoverImageProvider(track.coverUrl) != null)
             Positioned.fill(
               child: ClipRect(
+                clipBehavior: Clip.hardEdge,
                 child: ImageFiltered(
-                  imageFilter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      image: DecorationImage(
-                        image: getCoverImageProvider(track.coverUrl)!,
-                        fit: BoxFit.cover,
-                        colorFilter: ColorFilter.mode(
-                          Colors.black.withValues(alpha: 0.75),
-                          BlendMode.darken,
+                  imageFilter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
+                  child: Transform.scale(
+                    scale: 1.3,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        image: DecorationImage(
+                          image: getCoverImageProvider(track.coverUrl)!,
+                          fit: BoxFit.cover,
+                          colorFilter: ColorFilter.mode(
+                            Colors.black.withValues(alpha: 0.82),
+                            BlendMode.darken,
+                          ),
                         ),
                       ),
                     ),
@@ -160,23 +164,29 @@ class MobileExpandedPlayer extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: context.colors.textPrimary,
+                          color: Colors.white,
                           fontSize: 22,
                           fontWeight: FontWeight.w700,
                           letterSpacing: -0.5,
+                          shadows: [
+                            Shadow(color: Colors.black.withValues(alpha: 0.8), blurRadius: 6),
+                            Shadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 12),
+                          ],
                         ),
                       ),
                       const SizedBox(height: 6),
-                      if (track.artist.isNotEmpty)
                         Text(
                           track.artist,
                           textAlign: TextAlign.center,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: context.colors.textSecondary,
+                            color: Colors.white.withValues(alpha: 0.85),
                             fontSize: 16,
                             fontWeight: FontWeight.w500,
+                            shadows: [
+                              Shadow(color: Colors.black.withValues(alpha: 0.7), blurRadius: 4),
+                            ],
                           ),
                         ),
                     ],
