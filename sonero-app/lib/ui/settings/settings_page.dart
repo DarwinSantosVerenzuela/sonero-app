@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'platform_stub.dart'
     if (dart.library.io) 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -389,6 +390,133 @@ class _SettingsPageState extends State<SettingsPage> {
                   onChanged: (lang) {
                     if (lang != null) settings.setLocale(lang);
                   },
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          // ── Logo personalizado ────────────────────────────────────
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: context.colors.surface,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                // Current logo preview
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.3)),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: settings.customLogoPath.isNotEmpty
+                        ? (kIsWeb
+                            ? Image.network(
+                                settings.customLogoPath,
+                                width: 56,
+                                height: 56,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Image.asset(
+                                  'assets/images/logo.png',
+                                  width: 56,
+                                  height: 56,
+                                  fit: BoxFit.cover,
+                                ),
+                              )
+                            : Image.file(
+                                File(settings.customLogoPath),
+                                width: 56,
+                                height: 56,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Image.asset(
+                                  'assets/images/logo.png',
+                                  width: 56,
+                                  height: 56,
+                                  fit: BoxFit.cover,
+                                ),
+                              ))
+                        : Image.asset(
+                            'assets/images/logo.png',
+                            width: 56,
+                            height: 56,
+                            fit: BoxFit.cover,
+                          ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Logo personalizado',
+                        style: TextStyle(
+                          color: context.colors.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Cambia el ícono de la app donde aparezca',
+                        style: TextStyle(
+                          color: context.colors.textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.image_rounded, size: 16),
+                            label: const Text('Elegir imagen'),
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              textStyle: const TextStyle(fontSize: 12),
+                            ),
+                            onPressed: () async {
+                              final result = await FilePicker.platform.pickFiles(
+                                type: FileType.image,
+                                allowMultiple: false,
+                              );
+                              if (result != null && result.files.isNotEmpty) {
+                                final file = result.files.first;
+                                if (kIsWeb) {
+                                  // On web, store as data URI
+                                  if (file.bytes != null) {
+                                    final b64 = base64Encode(file.bytes!);
+                                    final ext = file.extension ?? 'png';
+                                    final dataUri = 'data:image/$ext;base64,$b64';
+                                    settings.setCustomLogoPath(dataUri);
+                                  }
+                                } else {
+                                  // On native, store the file path
+                                  if (file.path != null) {
+                                    settings.setCustomLogoPath(file.path!);
+                                  }
+                                }
+                              }
+                            },
+                          ),
+                          if (settings.customLogoPath.isNotEmpty) ...[
+                            const SizedBox(width: 8),
+                            TextButton.icon(
+                              icon: Icon(Icons.restore_rounded, size: 16, color: context.colors.error),
+                              label: Text('Restaurar', style: TextStyle(color: context.colors.error, fontSize: 12)),
+                              onPressed: () => settings.clearCustomLogo(),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),

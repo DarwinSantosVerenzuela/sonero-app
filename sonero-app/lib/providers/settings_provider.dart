@@ -33,6 +33,7 @@ class SettingsProvider extends ChangeNotifier {
   static const _keyRapidApiKey = 'rapidapi_key';
   static const _keyRapidApiHost = 'rapidapi_host';
   static const _keyShazamProxyUrl = 'shazam_proxy_url';
+  static const _keyCustomLogoPath = 'custom_logo_path';
 
   String _apiUrl = 'http://127.0.0.1:8000';
   String _musicFolder = '';
@@ -66,6 +67,7 @@ class SettingsProvider extends ChangeNotifier {
   String _rapidApiKey = '';
   String _rapidApiHost = 'shazam-song-recognizer.p.rapidapi.com';
   String _shazamProxyUrl = '';
+  String _customLogoPath = '';
 
   String _defaultMusicFolder = '';
   String _defaultVideoFolder = '';
@@ -86,6 +88,7 @@ class SettingsProvider extends ChangeNotifier {
   Color get accentColor => _accentColor;
   Color? get sidebarColor => _sidebarColor;
   String get locale => _locale;
+  String get customLogoPath => _customLogoPath;
 
   String get currentUserId => _currentUserId;
   String? get currentUserName => _currentUserName;
@@ -151,6 +154,7 @@ class SettingsProvider extends ChangeNotifier {
     if (sidebarVal != null) _sidebarColor = Color(sidebarVal);
 
     _locale = prefs.getString(_keyLocale) ?? 'es';
+    _customLogoPath = prefs.getString(_keyCustomLogoPath) ?? '';
 
     _googleClientId = prefs.getString(_keyGoogleClientId) ?? '';
     _googleClientSecret = prefs.getString(_keyGoogleClientSecret) ?? '';
@@ -338,6 +342,20 @@ class SettingsProvider extends ChangeNotifier {
     _locale = locale;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyLocale, locale);
+    notifyListeners();
+  }
+
+  Future<void> setCustomLogoPath(String path) async {
+    _customLogoPath = path;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyCustomLogoPath, path);
+    notifyListeners();
+  }
+
+  Future<void> clearCustomLogo() async {
+    _customLogoPath = '';
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_keyCustomLogoPath);
     notifyListeners();
   }
 

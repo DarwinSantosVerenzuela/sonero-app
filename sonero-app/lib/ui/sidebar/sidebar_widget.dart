@@ -10,6 +10,7 @@ import '../theme.dart';
 import '../settings/settings_page.dart';
 import '../video_download_dialog.dart';
 import '../widgets/hover_scale.dart';
+import '../widgets/app_logo.dart';
 
 class SidebarWidget extends StatelessWidget {
   final int currentIndex;
@@ -339,8 +340,6 @@ class _BrandHeader extends StatelessWidget {
                 onTap: onToggle,
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
-                  width: 40,
-                  height: 40,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
@@ -348,28 +347,7 @@ class _BrandHeader extends StatelessWidget {
                       width: 1,
                     ),
                   ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.asset(
-                      'assets/images/logo.png',
-                      width: 40,
-                      height: 40,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [accent, accent.withOpacity(0.7)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(Icons.music_note_rounded, color: Colors.white, size: 22),
-                      ),
-                    ),
-                  ),
+                  child: const AppLogo(size: 40, borderRadius: 12),
                 ),
               ),
             ),
@@ -408,8 +386,6 @@ class _BrandHeader extends StatelessWidget {
               onTap: onToggle,
               borderRadius: BorderRadius.circular(12),
               child: Container(
-                width: 40,
-                height: 40,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
@@ -417,28 +393,7 @@ class _BrandHeader extends StatelessWidget {
                     width: 1,
                   ),
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.asset(
-                    'assets/images/logo.png',
-                    width: 40,
-                    height: 40,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [accent, accent.withOpacity(0.7)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Icons.music_note_rounded, color: Colors.white, size: 22),
-                    ),
-                  ),
-                ),
+                child: const AppLogo(size: 40, borderRadius: 12),
               ),
             ),
           ),
