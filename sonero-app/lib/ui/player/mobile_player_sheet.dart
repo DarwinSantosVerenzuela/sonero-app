@@ -18,32 +18,37 @@ class MobileExpandedPlayer extends StatefulWidget {
 
 class _MobileExpandedPlayerState extends State<MobileExpandedPlayer> with SingleTickerProviderStateMixin {
   late final ScrollController _scrollController;
-  Timer? _scrollTimer;
+  late final AnimationController _marqueeController;
 
   @override
   void initState() {
     super.initState();
     _scrollController = ScrollController();
-    _startMarquee();
+    _marqueeController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 10),
+    );
+    _marqueeController.addListener(_onMarqueeTick);
+    // Start after first frame so layout is done
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _marqueeController.repeat();
+    });
   }
 
-  void _startMarquee() {
-    _scrollTimer = Timer.periodic(const Duration(milliseconds: 50), (_) {
-      if (!_scrollController.hasClients) return;
-      final max = _scrollController.position.maxScrollExtent;
-      if (max <= 0) return;
-      final current = _scrollController.offset;
-      if (current >= max) {
-        _scrollController.jumpTo(0);
-      } else {
-        _scrollController.jumpTo(current + 0.8);
-      }
-    });
+  void _onMarqueeTick() {
+    if (!_scrollController.hasClients) return;
+    final max = _scrollController.position.maxScrollExtent;
+    if (max <= 0) return;
+    // Use half because the text is duplicated — reset at midpoint for seamless loop
+    final halfMax = max / 2;
+    final offset = (_marqueeController.value * halfMax) % halfMax;
+    _scrollController.jumpTo(offset);
   }
 
   @override
   void dispose() {
-    _scrollTimer?.cancel();
+    _marqueeController.removeListener(_onMarqueeTick);
+    _marqueeController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
