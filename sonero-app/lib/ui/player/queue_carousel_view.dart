@@ -164,12 +164,21 @@ class _QueueCarouselViewState extends State<QueueCarouselView> {
                 // ── 3D Carousel ──
                 Expanded(
                   flex: 5,
-                  child: PageView.builder(
-                    controller: _pageController,
-                    itemCount: queue.length,
-                    itemBuilder: (context, index) {
-                      return _buildCarouselCard(context, player, queue, index, isMobile);
-                    },
+                  child: ScrollConfiguration(
+                    behavior: ScrollConfiguration.of(context).copyWith(
+                      dragDevices: {
+                        PointerDeviceKind.touch,
+                        PointerDeviceKind.mouse,
+                        PointerDeviceKind.trackpad,
+                      },
+                    ),
+                    child: PageView.builder(
+                      controller: _pageController,
+                      itemCount: queue.length,
+                      itemBuilder: (context, index) {
+                        return _buildCarouselCard(context, player, queue, index, isMobile);
+                      },
+                    ),
                   ),
                 ),
 
