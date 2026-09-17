@@ -298,23 +298,33 @@ class MiniPlayer extends StatelessWidget {
             flex: 1,
             child: Row(
               children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    color: context.colors.surface,
-                    image: getCoverImageProvider(track.coverUrl) != null
-                        ? DecorationImage(
-                            image: getCoverImageProvider(track.coverUrl)!,
-                            fit: BoxFit.cover,
-                          )
+                GestureDetector(
+                  onTap: () {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (_) => const MobileExpandedPlayer(),
+                    );
+                  },
+                  child: Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      color: context.colors.surface,
+                      image: getCoverImageProvider(track.coverUrl) != null
+                          ? DecorationImage(
+                              image: getCoverImageProvider(track.coverUrl)!,
+                              fit: BoxFit.cover,
+                            )
+                          : null,
+                    ),
+                    child: getCoverImageProvider(track.coverUrl) == null
+                        ? Icon(Icons.music_note,
+                            color: context.colors.textSecondary)
                         : null,
                   ),
-                  child: getCoverImageProvider(track.coverUrl) == null
-                      ? Icon(Icons.music_note,
-                          color: context.colors.textSecondary)
-                      : null,
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -362,6 +372,29 @@ class MiniPlayer extends StatelessWidget {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
+                    HoverScale(
+                            scale: 1.15,
+                            child: IconButton(
+                              icon: Icon(
+                                Icons.keyboard_arrow_up_rounded,
+                                color: context.colors.textSecondary,
+                                size: 22,
+                              ),
+                              tooltip: 'Reproductor',
+                              onPressed: () {
+                                showModalBottomSheet(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  backgroundColor: Colors.transparent,
+                                  builder: (_) => const MobileExpandedPlayer(),
+                                );
+                              },
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(
+                                  minWidth: 36, minHeight: 36),
+                            ),
+                          ),
+                          const SizedBox(width: 2),
                           HoverScale(
                             scale: 1.15,
                             child: IconButton(
