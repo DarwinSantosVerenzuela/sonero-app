@@ -1345,13 +1345,26 @@ class _TrackListRowState extends State<_TrackListRow> {
                 margin: const EdgeInsets.symmetric(horizontal: 8),
                 color: context.colors.border.withOpacity(0.4),
               ),
-              PopupMenuButton<String>(
-                padding: EdgeInsets.zero,
-                icon: Icon(Icons.more_horiz, size: 20, color: context.colors.textSecondary.withOpacity(0.6)),
-                color: context.colors.surfaceAlt,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                onSelected: (action) => _handleMenuAction(context, track, action),
-                itemBuilder: (_) => _buildMenuItems(context, track),
+              GestureDetector(
+                onTap: () {
+                  final RenderBox box = context.findRenderObject() as RenderBox;
+                  final Offset offset = box.localToGlobal(Offset(box.size.width, box.size.height / 2));
+                  showMenu<String>(
+                    context: context,
+                    position: RelativeRect.fromLTRB(offset.dx - 200, offset.dy, offset.dx, offset.dy + 300),
+                    color: context.colors.surfaceAlt,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    items: _buildMenuItems(context, track),
+                  ).then((action) {
+                    if (action != null) {
+                      _handleMenuAction(context, track, action);
+                    }
+                  });
+                },
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Icon(Icons.more_horiz, size: 20, color: context.colors.textSecondary),
+                ),
               ),
             ],
           ],
