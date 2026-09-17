@@ -204,7 +204,7 @@ class MiniPlayer extends StatelessWidget {
                                 width: 40,
                                 height: 40,
                                 decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(10),
+                                  shape: BoxShape.circle,
                                   color: context.colors.surfaceAlt,
                                   image: getCoverImageProvider(track.coverUrl) != null
                                       ? DecorationImage(
