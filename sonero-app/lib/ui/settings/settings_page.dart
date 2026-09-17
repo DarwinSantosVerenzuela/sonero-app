@@ -1,3 +1,4 @@
+import 'dart:ui' as ui;
 import 'dart:convert';
 import 'platform_stub.dart'
     if (dart.library.io) 'dart:io';
@@ -135,9 +136,35 @@ class _SettingsPageState extends State<SettingsPage> {
       if (result != null && result.files.isNotEmpty) {
         final file = result.files.first;
         if (file.bytes != null) {
-          final b64 = base64Encode(file.bytes!);
-          final ext = file.extension ?? 'png';
-          settings.setCustomLogoPath('data:image/$ext;base64,$b64');
+          // Decode, resize to 200x200 max, and re-encode as PNG to keep small
+          final original = await decodeImageFromList(file.bytes!);
+          final size = 200.0;
+          double w = original.width.toDouble();
+          double h = original.height.toDouble();
+          if (w > size || h > size) {
+            final scale = size / (w > h ? w : h);
+            w = (w * scale).roundToDouble();
+            h = (h * scale).roundToDouble();
+          }
+          // Use Canvas to resize
+          final recorder = ui.PictureRecorder();
+          final canvas = Canvas(recorder, Rect.fromLTWH(0, 0, w, h));
+          canvas.drawImageRect(
+            original,
+            Rect.fromLTWH(0, 0, original.width.toDouble(), original.height.toDouble()),
+            Rect.fromLTWH(0, 0, w, h),
+            Paint()..filterQuality = FilterQuality.high,
+          );
+          final picture = recorder.endRecording();
+          final resized = await picture.toImage(w.toInt(), h.toInt());
+          final byteData = await resized.toByteData(format: ui.ImageByteFormat.png);
+          if (byteData != null) {
+            final pngBytes = byteData.buffer.asUint8List();
+            final b64 = base64Encode(pngBytes);
+            final dataUri = 'data:image/png;base64,$b64';
+            debugPrint('Logo saved: ${dataUri.length} chars');
+            await settings.setCustomLogoPath(dataUri);
+          }
         }
       }
     } catch (e) {
