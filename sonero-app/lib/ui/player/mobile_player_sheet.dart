@@ -184,7 +184,7 @@ class _MobileExpandedPlayerState extends State<MobileExpandedPlayer> with Single
                         width: 260,
                         height: 260,
                         decoration: BoxDecoration(
-                          shape: BoxShape.circle,
+                          borderRadius: BorderRadius.circular(20),
                           color: context.colors.surface,
                           boxShadow: [
                             BoxShadow(
