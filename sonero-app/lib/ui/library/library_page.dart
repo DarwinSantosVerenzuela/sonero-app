@@ -37,7 +37,7 @@ class _LibraryPageState extends State<LibraryPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
     _tabController.addListener(() => setState(() {}));
   }
 
@@ -67,6 +67,26 @@ class _LibraryPageState extends State<LibraryPage>
     });
   }
 
+  // Group tracks by album (non-empty album field)
+  Map<String, List<Track>> _groupByAlbum(List<Track> tracks) {
+    final map = <String, List<Track>>{};
+    for (final t in tracks) {
+      final key = t.album.isNotEmpty ? t.album : 'Sin Álbum';
+      map.putIfAbsent(key, () => []).add(t);
+    }
+    return map;
+  }
+
+  // Group tracks by artist
+  Map<String, List<Track>> _groupByArtist(List<Track> tracks) {
+    final map = <String, List<Track>>{};
+    for (final t in tracks) {
+      final key = t.artist.isNotEmpty ? t.artist : 'Desconocido';
+      map.putIfAbsent(key, () => []).add(t);
+    }
+    return map;
+  }
+
   @override
   Widget build(BuildContext context) {
     final library  = context.watch<LibraryProvider>();
@@ -74,12 +94,15 @@ class _LibraryPageState extends State<LibraryPage>
     final selected = library.selected;
 
     final allTracks   = library.tracks;
-    final audioTracks = allTracks.where((t) => !_isVideoTrack(t)).toList();
     final videoTracks = allTracks.where(_isVideoTrack).toList();
+    final audioTracks = allTracks.where((t) => !_isVideoTrack(t)).toList();
 
+    // Current tab content
     final List<Track> currentTracks = switch (_tabController.index) {
-      1 => audioTracks,
-      2 => videoTracks,
+      1 => audioTracks, // Álbum tab shows audio tracks (grouped in view)
+      2 => audioTracks, // Lista de Reproducción shows audio tracks (grouped by playlist)
+      3 => audioTracks, // Artistas shows audio tracks (grouped in view)
+      4 => videoTracks,
       _ => allTracks,
     };
 
@@ -104,12 +127,12 @@ class _LibraryPageState extends State<LibraryPage>
           final isMobile = MediaQuery.of(context).size.width < 600;
           return TabBar(
             controller: _tabController,
-            isScrollable: false,
+            isScrollable: true,
             indicatorColor: Theme.of(context).colorScheme.primary,
             labelColor: Theme.of(context).colorScheme.primary,
             unselectedLabelColor: context.colors.textSecondary,
             labelStyle: TextStyle(fontWeight: FontWeight.w600, fontSize: isMobile ? 11 : 13),
-            labelPadding: isMobile ? const EdgeInsets.symmetric(horizontal: 6) : null,
+            labelPadding: isMobile ? const EdgeInsets.symmetric(horizontal: 6) : const EdgeInsets.symmetric(horizontal: 16),
             tabs: [
               Tab(
                 height: isMobile ? 36 : null,
@@ -122,9 +145,25 @@ class _LibraryPageState extends State<LibraryPage>
               Tab(
                 height: isMobile ? 36 : null,
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(Icons.audiotrack_rounded, size: isMobile ? 14 : 16),
+                  Icon(Icons.album_rounded, size: isMobile ? 14 : 16),
                   const SizedBox(width: 4),
-                  Text('Audio (${audioTracks.length})'),
+                  Text('Álbum (${_groupByAlbum(audioTracks).length})'),
+                ]),
+              ),
+              Tab(
+                height: isMobile ? 36 : null,
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.queue_music_rounded, size: isMobile ? 14 : 16),
+                  const SizedBox(width: 4),
+                  Text('Lista de Reproducción'),
+                ]),
+              ),
+              Tab(
+                height: isMobile ? 36 : null,
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.person_rounded, size: isMobile ? 14 : 16),
+                  const SizedBox(width: 4),
+                  Text('Artistas (${_groupByArtist(audioTracks).length})'),
                 ]),
               ),
               Tab(
@@ -132,7 +171,7 @@ class _LibraryPageState extends State<LibraryPage>
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                   Icon(Icons.videocam_rounded, size: isMobile ? 14 : 16),
                   const SizedBox(width: 4),
-                  Text('Video (${videoTracks.length})'),
+                  Text('Videos (${videoTracks.length})'),
                 ]),
               ),
             ],
@@ -145,23 +184,186 @@ class _LibraryPageState extends State<LibraryPage>
           child: library.loading
               ? Center(child: CircularProgressIndicator(
                   color: Theme.of(context).colorScheme.primary))
-              : currentTracks.isEmpty
-                  ? _EmptyState(
-                      playlist: selected,
-                      tabIndex: _tabController.index,
-                    )
-                  : TabBarView(
-                      controller: _tabController,
-                      children: [
-                        _buildContent(allTracks,   allTracks),
-                        _buildContent(audioTracks, audioTracks),
-                        _buildContent(videoTracks, videoTracks),
-                      ],
-                    ),
+              : TabBarView(
+                  controller: _tabController,
+                  children: [
+                    // Tab 0: Todo
+                    allTracks.isEmpty
+                        ? _EmptyState(playlist: selected, tabIndex: 0)
+                        : _buildContent(allTracks, allTracks),
+                    // Tab 1: Álbum
+                    audioTracks.isEmpty
+                        ? _EmptyState(playlist: selected, tabIndex: 1)
+                        : _buildGroupedContent(_groupByAlbum(audioTracks), audioTracks, Icons.album_rounded),
+                    // Tab 2: Lista de Reproducción
+                    _buildPlaylistContent(library, audioTracks),
+                    // Tab 3: Artistas
+                    audioTracks.isEmpty
+                        ? _EmptyState(playlist: selected, tabIndex: 3)
+                        : _buildGroupedContent(_groupByArtist(audioTracks), audioTracks, Icons.person_rounded),
+                    // Tab 4: Videos
+                    videoTracks.isEmpty
+                        ? _EmptyState(playlist: selected, tabIndex: 4)
+                        : _buildContent(videoTracks, videoTracks),
+                  ],
+                ),
         ),
         if (_isMultiSelectMode)
           _buildSelectionActionBar(context, library, settings, currentTracks),
       ],
+    );
+  }
+
+  /// Grouped content (for Albums / Artists)
+  Widget _buildGroupedContent(Map<String, List<Track>> groups, List<Track> allTracks, IconData icon) {
+    final sortedKeys = groups.keys.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      itemCount: sortedKeys.length,
+      itemBuilder: (context, i) {
+        final key = sortedKeys[i];
+        final tracks = groups[key]!;
+        final coverTrack = tracks.firstWhere(
+          (t) => t.coverUrl != null && t.coverUrl!.isNotEmpty,
+          orElse: () => tracks.first,
+        );
+        return _GroupTile(
+          title: key,
+          subtitle: '${tracks.length} ${tracks.length == 1 ? 'canción' : 'canciones'}',
+          icon: icon,
+          coverUrl: coverTrack.coverUrl,
+          onTap: () {
+            _showGroupTracks(context, key, tracks, allTracks);
+          },
+        );
+      },
+    );
+  }
+
+  /// Playlist content
+  Widget _buildPlaylistContent(LibraryProvider library, List<Track> audioTracks) {
+    final playlists = library.playlists.where((p) => p.name != 'library').toList();
+    if (playlists.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.queue_music_rounded, size: 48, color: context.colors.textSecondary.withValues(alpha: 0.5)),
+            const SizedBox(height: 12),
+            Text(
+              'No hay listas de reproducción',
+              style: TextStyle(color: context.colors.textSecondary, fontSize: 16),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Crea etiquetas para organizar tu música',
+              style: TextStyle(color: context.colors.textSecondary.withValues(alpha: 0.6), fontSize: 13),
+            ),
+          ],
+        ),
+      );
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      itemCount: playlists.length,
+      itemBuilder: (context, i) {
+        final pl = playlists[i];
+        return _GroupTile(
+          title: pl.name,
+          subtitle: pl.name,
+          icon: Icons.queue_music_rounded,
+          coverUrl: null,
+          onTap: () {
+            final settings = context.read<SettingsProvider>();
+            library.selectPlaylist(settings.api, pl);
+          },
+        );
+      },
+    );
+  }
+
+  void _showGroupTracks(BuildContext context, String groupName, List<Track> tracks, List<Track> allTracks) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: context.colors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.7,
+          minChildSize: 0.4,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (context, scrollController) {
+            return Column(
+              children: [
+                // Handle
+                Container(
+                  margin: const EdgeInsets.only(top: 10),
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(
+                    color: context.colors.textSecondary.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    groupName,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: context.colors.textPrimary,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    controller: scrollController,
+                    itemCount: tracks.length,
+                    itemBuilder: (context, i) {
+                      final track = tracks[i];
+                      return ListTile(
+                        leading: track.coverUrl != null && track.coverUrl!.isNotEmpty && getCoverImageProvider(track.coverUrl) != null
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image(image: getCoverImageProvider(track.coverUrl)!, width: 48, height: 48, fit: BoxFit.cover),
+                              )
+                            : Container(
+                                width: 48, height: 48,
+                                decoration: BoxDecoration(
+                                  color: context.colors.surfaceAlt,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(Icons.music_note, color: context.colors.textSecondary),
+                              ),
+                        title: Text(
+                          track.title.isNotEmpty ? track.title : track.filename,
+                          maxLines: 1, overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: context.colors.textPrimary, fontWeight: FontWeight.w600),
+                        ),
+                        subtitle: Text(
+                          track.artist,
+                          maxLines: 1, overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: context.colors.textSecondary, fontSize: 12),
+                        ),
+                        onTap: () {
+                          Navigator.pop(context);
+                          final player = context.read<PlayerProvider>();
+                          final settings = context.read<SettingsProvider>();
+                          player.playTrack(track, tracks, settings);
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
@@ -2248,4 +2450,51 @@ Future<void> _confirmDeletePlaylist(
 
 
 
+/// Reusable tile for grouped views (Albums, Artists, Playlists)
+class _GroupTile extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final String? coverUrl;
+  final VoidCallback onTap;
 
+  const _GroupTile({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.coverUrl,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hasCover = coverUrl != null && coverUrl!.isNotEmpty && getCoverImageProvider(coverUrl) != null;
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      leading: ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: SizedBox(
+          width: 52, height: 52,
+          child: hasCover
+              ? Image(image: getCoverImageProvider(coverUrl)!, fit: BoxFit.cover)
+              : Container(
+                  color: context.colors.surfaceAlt,
+                  child: Icon(icon, color: context.colors.textSecondary, size: 26),
+                ),
+        ),
+      ),
+      title: Text(
+        title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(color: context.colors.textPrimary, fontWeight: FontWeight.w600, fontSize: 15),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: TextStyle(color: context.colors.textSecondary, fontSize: 12),
+      ),
+      trailing: Icon(Icons.chevron_right_rounded, color: context.colors.textSecondary),
+      onTap: onTap,
+    );
+  }
+}

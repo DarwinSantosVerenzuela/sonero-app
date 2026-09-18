@@ -602,8 +602,26 @@ class MiniPlayer extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Icon(Icons.volume_up_rounded,
-                    color: context.colors.textSecondary, size: 20),
+                HoverScale(
+                  scale: 1.03,
+                  child: GestureDetector(
+                    onTap: player.toggleMute,
+                    child: Tooltip(
+                      message: player.volume <= 0 ? 'Activar sonido' : 'Silenciar',
+                      child: Icon(
+                        player.volume <= 0
+                            ? Icons.volume_off_rounded
+                            : player.volume < 50
+                                ? Icons.volume_down_rounded
+                                : Icons.volume_up_rounded,
+                        color: player.volume <= 0
+                            ? Theme.of(context).colorScheme.primary
+                            : context.colors.textSecondary,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ),
                 SizedBox(
                   width: 100,
                   child: SliderTheme(
@@ -622,10 +640,13 @@ class MiniPlayer extends StatelessWidget {
                     ),
                   ),
                 ),
-                IconButton(
-                  icon: Icon(Icons.close_rounded,
-                      color: context.colors.textSecondary, size: 20),
-                  onPressed: player.stop,
+                GestureDetector(
+                  onTap: player.stop,
+                  child: Tooltip(
+                    message: 'Detener',
+                    child: Icon(Icons.close_rounded,
+                        color: context.colors.textSecondary, size: 20),
+                  ),
                 ),
               ],
             ),

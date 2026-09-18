@@ -373,6 +373,16 @@ class _MobileExpandedPlayerState extends State<MobileExpandedPlayer> with Single
                 onPressed: () => setState(() => _showLyrics = false),
               ),
               const SizedBox(width: 8),
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.lyrics_rounded, color: Colors.white, size: 18),
+              ),
+              const SizedBox(width: 8),
               Text('Letra', style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 18, fontWeight: FontWeight.w700)),
               const Spacer(),
               Text(
@@ -394,11 +404,6 @@ class _MobileExpandedPlayerState extends State<MobileExpandedPlayer> with Single
             ),
           ),
           const SizedBox(height: 12),
-          // Mini seek + controls
-          _buildSeekBar(context, player, primaryColor),
-          const SizedBox(height: 8),
-          _buildPlaybackControls(context, player, primaryColor),
-          const SizedBox(height: 8),
         ],
       ),
     );
@@ -408,8 +413,10 @@ class _MobileExpandedPlayerState extends State<MobileExpandedPlayer> with Single
   // Mobile Layout: Original vertical column
   // ═══════════════════════════════════════════════════════════════════════════
   Widget _buildMobileLayout(BuildContext context, PlayerProvider player, dynamic track, bool hasCover, Color primaryColor) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final coverSize = (screenHeight * 0.32).clamp(160.0, 300.0);
+
     return Column(
-      mainAxisSize: MainAxisSize.min,
       children: [
         const SizedBox(height: 12),
         Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(10))),
@@ -426,55 +433,63 @@ class _MobileExpandedPlayerState extends State<MobileExpandedPlayer> with Single
           ),
         ),
 
-        const Spacer(),
-
-        // Cover Art
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
-          child: Center(
-            child: Hero(
-              tag: 'mobile_player_cover',
-              child: Container(
-                width: 260,
-                height: 260,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  color: context.colors.surface,
-                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 20, spreadRadius: 2, offset: const Offset(0, 10))],
-                  image: hasCover && getCoverImageProvider(track.coverUrl) != null
-                      ? DecorationImage(image: getCoverImageProvider(track.coverUrl)!, fit: BoxFit.cover)
-                      : null,
+        Expanded(
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Column(
+              children: [
+                const SizedBox(height: 16),
+                // Cover Art
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 8),
+                  child: Center(
+                    child: Hero(
+                      tag: 'mobile_player_cover',
+                      child: Container(
+                        width: coverSize,
+                        height: coverSize,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          color: context.colors.surface,
+                          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 20, spreadRadius: 2, offset: const Offset(0, 10))],
+                          image: hasCover && getCoverImageProvider(track.coverUrl) != null
+                              ? DecorationImage(image: getCoverImageProvider(track.coverUrl)!, fit: BoxFit.cover)
+                              : null,
+                        ),
+                        child: !hasCover || getCoverImageProvider(track.coverUrl) == null
+                            ? Icon(Icons.music_note_rounded, color: context.colors.textSecondary, size: 80)
+                            : null,
+                      ),
+                    ),
+                  ),
                 ),
-                child: !hasCover || getCoverImageProvider(track.coverUrl) == null
-                    ? Icon(Icons.music_note_rounded, color: context.colors.textSecondary, size: 80)
-                    : null,
-              ),
+
+                const SizedBox(height: 20),
+
+                // Title & Artist
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      _buildTitleMarquee(track, 22),
+                      const SizedBox(height: 6),
+                      _buildArtist(track, 16),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+                Padding(padding: const EdgeInsets.symmetric(horizontal: 24), child: _buildSeekBar(context, player, primaryColor)),
+                const SizedBox(height: 16),
+                Padding(padding: const EdgeInsets.symmetric(horizontal: 24), child: _buildPlaybackControls(context, player, primaryColor)),
+                const SizedBox(height: 24),
+                Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: _buildVolumeAndUtils(context, player, isMobile: true)),
+                const SizedBox(height: 16),
+              ],
             ),
           ),
         ),
-
-        const Spacer(),
-
-        // Title & Artist
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              _buildTitleMarquee(track, 22),
-              const SizedBox(height: 6),
-              _buildArtist(track, 16),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 24),
-        Padding(padding: const EdgeInsets.symmetric(horizontal: 24), child: _buildSeekBar(context, player, primaryColor)),
-        const SizedBox(height: 16),
-        Padding(padding: const EdgeInsets.symmetric(horizontal: 24), child: _buildPlaybackControls(context, player, primaryColor)),
-        const SizedBox(height: 24),
-        Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: _buildVolumeAndUtils(context, player, isMobile: true)),
-        const SizedBox(height: 16),
       ],
     );
   }
@@ -615,21 +630,17 @@ class _MobileExpandedPlayerState extends State<MobileExpandedPlayer> with Single
                       showGeneralDialog(
                         context: context,
                         barrierDismissible: true,
-                        barrierLabel: 'Cola',
+                        barrierLabel: 'Cover Flow',
                         barrierColor: Colors.black87,
                         transitionDuration: const Duration(milliseconds: 300),
                         pageBuilder: (_, __, ___) => const QueueCarouselView(),
                         transitionBuilder: (_, anim, __, child) {
-                          return SlideTransition(
-                            position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
-                                .animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
-                            child: child,
-                          );
+                          return FadeTransition(opacity: anim, child: child);
                         },
                       );
                     },
                     icon: Icon(Icons.view_carousel_rounded, color: btnColor, size: iconSize),
-                    label: Text('Cola', style: TextStyle(color: btnColor, fontSize: labelSize, fontWeight: FontWeight.w500)),
+                    label: Text('Cover Flow', style: TextStyle(color: btnColor, fontSize: labelSize, fontWeight: FontWeight.w500)),
                   ),
                   TextButton.icon(
                     onPressed: () {
@@ -779,13 +790,17 @@ class _MarqueeBannerState extends State<_MarqueeBanner> {
             child: child,
           );
         },
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('${widget.text}$_spacer', style: style),
-            Text('${widget.text}$_spacer', style: style),
-            Text('${widget.text}$_spacer', style: style),
-          ],
+        child: OverflowBox(
+          maxWidth: double.infinity,
+          alignment: Alignment.centerLeft,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('${widget.text}$_spacer', style: style),
+              Text('${widget.text}$_spacer', style: style),
+              Text('${widget.text}$_spacer', style: style),
+            ],
+          ),
         ),
       ),
     );

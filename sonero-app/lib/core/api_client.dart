@@ -779,7 +779,13 @@ class ApiClient {
     t = t.replaceAll(_youtubeSuffixes, '');
     t = t.replaceAll(_featuring, '');
     t = t.replaceAll(_extraParens, '');
-    return t.replaceAll(RegExp(r'^[ \-|]+|[ \-|]+$'), '').trim();
+    // Remove square brackets content too (e.g. [Official Video])
+    t = t.replaceAll(RegExp(r'\[.*?\]'), '');
+    // Remove common YouTube noise words
+    t = t.replaceAll(RegExp(r'\b(?:official\s+video|official\s+audio|official\s+music\s+video|lyric\s+video|lyrics?\s+video|audio\s+oficial|video\s+oficial)\b', caseSensitive: false), '');
+    // Remove extra whitespace and trailing/leading separators
+    t = t.replaceAll(RegExp(r'\s{2,}'), ' ');
+    return t.replaceAll(RegExp(r'^[ \-|,]+|[ \-|,]+$'), '').trim();
   }
 
   Map<String, String> _extractArtistTitle(String rawTitle, String rawArtist) {
@@ -788,12 +794,24 @@ class ApiClient {
     final cleaned = _cleanTitle(title);
     final match = _artistPrefix.firstMatch(cleaned);
     if (match != null) {
-      final extractedArtist = match.group(1)!.trim();
+      var extractedArtist = match.group(1)!.trim();
       final extractedTitle = _cleanTitle(match.group(2)!);
-      final useArtist = rawArtist.trim().isNotEmpty ? rawArtist.trim() : extractedArtist;
+      // Use only primary artist (first name before comma) for better matching
+      if (extractedArtist.contains(',')) {
+        extractedArtist = extractedArtist.split(',').first.trim();
+      }
+      var useArtist = rawArtist.trim().isNotEmpty ? rawArtist.trim() : extractedArtist;
+      // Also clean the provided artist of comma-separated names
+      if (useArtist.contains(',')) {
+        useArtist = useArtist.split(',').first.trim();
+      }
       return {'artist': useArtist, 'title': extractedTitle};
     }
-    return {'artist': rawArtist.trim(), 'title': cleaned};
+    var finalArtist = rawArtist.trim();
+    if (finalArtist.contains(',')) {
+      finalArtist = finalArtist.split(',').first.trim();
+    }
+    return {'artist': finalArtist, 'title': cleaned};
   }
 
   Future<Map<String, dynamic>?> _lrclibFetch(String title, String artist) async {
@@ -863,38 +881,43 @@ class ApiClient {
   }
 
   Future<Map<String, dynamic>> getLyrics(String title, String artist) async {
-    if (isNative) {
-      try {
-        final result = await _lrclibFetch(title, artist);
-        if (result != null) {
-          return {
-            'plain': result['plain'],
-            'synced': result['synced'],
-            'source': 'lrclib',
-          };
-        }
+    // LRCLIB has full CORS support, so we call it directly on all platforms
+    // This is much faster than routing through the backend
+    try {
+      final result = await _lrclibFetch(title, artist);
+      if (result != null) {
         return {
-          'plain': null,
-          'synced': null,
-          'error': 'No se encontraron letras para esta canción en lrclib.net.',
-        };
-      } catch (e) {
-        return {
-          'plain': null,
-          'synced': null,
-          'error': 'Error al buscar letras: $e',
+          'plain': result['plain'],
+          'synced': result['synced'],
+          'source': 'lrclib',
         };
       }
+      return {
+        'plain': null,
+        'synced': null,
+        'error': 'No se encontraron letras para esta canción.',
+      };
+    } catch (e) {
+      // If direct lrclib fails on web and we have a backend, try through backend
+      if (!isNative && baseUrl.isNotEmpty && baseUrl != 'native') {
+        try {
+          final uri = Uri.parse('$baseUrl/api/v1/metadata/lyrics').replace(
+            queryParameters: {
+              'title': title,
+              'artist': artist,
+            },
+          );
+          final res = await http.get(uri).timeout(const Duration(seconds: 8));
+          _check(res);
+          return jsonDecode(res.body) as Map<String, dynamic>;
+        } catch (_) {}
+      }
+      return {
+        'plain': null,
+        'synced': null,
+        'error': 'Error al buscar letras: $e',
+      };
     }
-    final uri = Uri.parse('$baseUrl/api/v1/metadata/lyrics').replace(
-      queryParameters: {
-        'title': title,
-        'artist': artist,
-      },
-    );
-    final res = await http.get(uri);
-    _check(res);
-    return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
   Future<Map<String, dynamic>> saveLyrics({
