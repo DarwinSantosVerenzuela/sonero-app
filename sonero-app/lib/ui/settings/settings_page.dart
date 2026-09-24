@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+import 'dart:convert';
 import 'platform_stub.dart'
     if (dart.library.io) 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -61,6 +63,60 @@ class _SettingsPageState extends State<SettingsPage> {
     _shazamProxyUrlCtrl.dispose();
     super.dispose();
   }
+  Future<String?> _showWebFolderInput(BuildContext context, String title, String currentPath) async {
+    final controller = TextEditingController(text: currentPath);
+    final accent = Theme.of(context).colorScheme.primary;
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: context.colors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.folder_rounded, color: accent, size: 20),
+            const SizedBox(width: 10),
+            Text(title, style: TextStyle(color: context.colors.textPrimary, fontSize: 16)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Escribe la ruta completa de la carpeta:', style: TextStyle(color: context.colors.textSecondary, fontSize: 13)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              style: TextStyle(color: context.colors.textPrimary, fontSize: 14),
+              decoration: InputDecoration(
+                hintText: r'Ej: C:\Users\tu_usuario\Music\Sonero',
+                hintStyle: TextStyle(color: context.colors.textSecondary.withOpacity(0.4), fontSize: 13),
+                filled: true,
+                fillColor: context.colors.bg,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.colors.border.withOpacity(0.2))),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.colors.border.withOpacity(0.2))),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: accent, width: 1.5)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                prefixIcon: Icon(Icons.folder_rounded, color: accent.withOpacity(0.5), size: 20),
+              ),
+              onSubmitted: (val) => Navigator.of(ctx).pop(val),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text('Cancelar', style: TextStyle(color: context.colors.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text),
+            style: ElevatedButton.styleFrom(backgroundColor: accent, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)), elevation: 0),
+            child: const Text('Confirmar'),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildWebSettingsSection(BuildContext context, SettingsProvider settings) {
     return SizedBox(
@@ -101,6 +157,73 @@ class _SettingsPageState extends State<SettingsPage> {
         ],
       ),
     );
+  }
+
+  Widget _buildLogoPreview(SettingsProvider settings, double size) {
+    final path = settings.customLogoPath;
+    if (path.isEmpty) {
+      return Image.asset('assets/images/logo.png', width: size, height: size, fit: BoxFit.cover);
+    }
+    if (path.startsWith('data:')) {
+      try {
+        final b64 = path.split(',').last;
+        return Image.memory(
+          base64Decode(b64),
+          width: size, height: size, fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Image.asset('assets/images/logo.png', width: size, height: size, fit: BoxFit.cover),
+        );
+      } catch (_) {
+        return Image.asset('assets/images/logo.png', width: size, height: size, fit: BoxFit.cover);
+      }
+    }
+    // Fallback for any other stored path — just show default
+    return Image.asset('assets/images/logo.png', width: size, height: size, fit: BoxFit.cover);
+  }
+
+  Future<void> _pickLogoImage(SettingsProvider settings) async {
+    try {
+      final result = await FilePicker.pickFiles(
+        type: FileType.image,
+        allowMultiple: false,
+        withData: true,
+      );
+      if (result != null && result.files.isNotEmpty) {
+        final file = result.files.first;
+        if (file.bytes != null) {
+          // Decode, resize to 200x200 max, and re-encode as PNG to keep small
+          final original = await decodeImageFromList(file.bytes!);
+          final size = 200.0;
+          double w = original.width.toDouble();
+          double h = original.height.toDouble();
+          if (w > size || h > size) {
+            final scale = size / (w > h ? w : h);
+            w = (w * scale).roundToDouble();
+            h = (h * scale).roundToDouble();
+          }
+          // Use Canvas to resize
+          final recorder = ui.PictureRecorder();
+          final canvas = Canvas(recorder, Rect.fromLTWH(0, 0, w, h));
+          canvas.drawImageRect(
+            original,
+            Rect.fromLTWH(0, 0, original.width.toDouble(), original.height.toDouble()),
+            Rect.fromLTWH(0, 0, w, h),
+            Paint()..filterQuality = FilterQuality.high,
+          );
+          final picture = recorder.endRecording();
+          final resized = await picture.toImage(w.toInt(), h.toInt());
+          final byteData = await resized.toByteData(format: ui.ImageByteFormat.png);
+          if (byteData != null) {
+            final pngBytes = byteData.buffer.asUint8List();
+            final b64 = base64Encode(pngBytes);
+            final dataUri = 'data:image/png;base64,$b64';
+            debugPrint('Logo saved: ${dataUri.length} chars');
+            await settings.setCustomLogoPath(dataUri);
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Logo pick error: $e');
+    }
   }
 
   @override
@@ -183,9 +306,10 @@ class _SettingsPageState extends State<SettingsPage> {
                             label: const Text('Seleccionar carpeta'),
                             onPressed: () async {
                               if (kIsWeb) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Selección de carpeta no disponible en la versión web.')),
-                                );
+                                final path = await _showWebFolderInput(context, 'Carpeta de Música', settings.musicFolder);
+                                if (path != null && path.isNotEmpty) {
+                                  await settings.setMusicFolder(path);
+                                }
                                 return;
                               }
                               final result = await FilePicker.getDirectoryPath(
@@ -261,9 +385,10 @@ class _SettingsPageState extends State<SettingsPage> {
                             label: const Text('Seleccionar carpeta'),
                             onPressed: () async {
                               if (kIsWeb) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Selección de carpeta no disponible en la versión web.')),
-                                );
+                                final path = await _showWebFolderInput(context, 'Carpeta de Videos', settings.videoFolder);
+                                if (path != null && path.isNotEmpty) {
+                                  await settings.setVideoFolder(path);
+                                }
                                 return;
                               }
                               final result = await FilePicker.getDirectoryPath(
@@ -389,6 +514,80 @@ class _SettingsPageState extends State<SettingsPage> {
                   onChanged: (lang) {
                     if (lang != null) settings.setLocale(lang);
                   },
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          // ── Logo personalizado ────────────────────────────────────
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: context.colors.surface,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                // Current logo preview
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.3)),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: _buildLogoPreview(settings, 56),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Logo personalizado',
+                        style: TextStyle(
+                          color: context.colors.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Cambia el ícono de la app donde aparezca',
+                        style: TextStyle(
+                          color: context.colors.textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.image_rounded, size: 16),
+                            label: const Text('Elegir imagen'),
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              textStyle: const TextStyle(fontSize: 12),
+                            ),
+                            onPressed: () => _pickLogoImage(settings),
+                          ),
+                          if (settings.customLogoPath.isNotEmpty) ...[
+                            const SizedBox(width: 8),
+                            TextButton.icon(
+                              icon: Icon(Icons.restore_rounded, size: 16, color: context.colors.error),
+                              label: Text('Restaurar', style: TextStyle(color: context.colors.error, fontSize: 12)),
+                              onPressed: () => settings.clearCustomLogo(),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),

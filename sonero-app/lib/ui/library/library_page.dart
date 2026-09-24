@@ -10,6 +10,7 @@ import '../../core/csv_service.dart';
 import '../../services/lyrics_service.dart';
 import '../theme.dart';
 import '../widgets/track_cover_image.dart';
+import '../settings/settings_page.dart';
 import 'metadata_dialog.dart';
 
 class LibraryPage extends StatefulWidget {
@@ -37,7 +38,7 @@ class _LibraryPageState extends State<LibraryPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
     _tabController.addListener(() => setState(() {}));
   }
 
@@ -67,6 +68,26 @@ class _LibraryPageState extends State<LibraryPage>
     });
   }
 
+  // Group tracks by album (non-empty album field)
+  Map<String, List<Track>> _groupByAlbum(List<Track> tracks) {
+    final map = <String, List<Track>>{};
+    for (final t in tracks) {
+      final key = t.album.isNotEmpty ? t.album : 'Sin Álbum';
+      map.putIfAbsent(key, () => []).add(t);
+    }
+    return map;
+  }
+
+  // Group tracks by artist
+  Map<String, List<Track>> _groupByArtist(List<Track> tracks) {
+    final map = <String, List<Track>>{};
+    for (final t in tracks) {
+      final key = t.artist.isNotEmpty ? t.artist : 'Desconocido';
+      map.putIfAbsent(key, () => []).add(t);
+    }
+    return map;
+  }
+
   @override
   Widget build(BuildContext context) {
     final library  = context.watch<LibraryProvider>();
@@ -74,12 +95,15 @@ class _LibraryPageState extends State<LibraryPage>
     final selected = library.selected;
 
     final allTracks   = library.tracks;
-    final audioTracks = allTracks.where((t) => !_isVideoTrack(t)).toList();
     final videoTracks = allTracks.where(_isVideoTrack).toList();
+    final audioTracks = allTracks.where((t) => !_isVideoTrack(t)).toList();
 
+    // Current tab content
     final List<Track> currentTracks = switch (_tabController.index) {
-      1 => audioTracks,
-      2 => videoTracks,
+      1 => audioTracks, // Álbum tab shows audio tracks (grouped in view)
+      2 => audioTracks, // Lista de Reproducción shows audio tracks (grouped by playlist)
+      3 => audioTracks, // Artistas shows audio tracks (grouped in view)
+      4 => videoTracks,
       _ => allTracks,
     };
 
@@ -104,12 +128,12 @@ class _LibraryPageState extends State<LibraryPage>
           final isMobile = MediaQuery.of(context).size.width < 600;
           return TabBar(
             controller: _tabController,
-            isScrollable: false,
+            isScrollable: true,
             indicatorColor: Theme.of(context).colorScheme.primary,
             labelColor: Theme.of(context).colorScheme.primary,
             unselectedLabelColor: context.colors.textSecondary,
             labelStyle: TextStyle(fontWeight: FontWeight.w600, fontSize: isMobile ? 11 : 13),
-            labelPadding: isMobile ? const EdgeInsets.symmetric(horizontal: 6) : null,
+            labelPadding: isMobile ? const EdgeInsets.symmetric(horizontal: 6) : const EdgeInsets.symmetric(horizontal: 16),
             tabs: [
               Tab(
                 height: isMobile ? 36 : null,
@@ -122,9 +146,25 @@ class _LibraryPageState extends State<LibraryPage>
               Tab(
                 height: isMobile ? 36 : null,
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(Icons.audiotrack_rounded, size: isMobile ? 14 : 16),
+                  Icon(Icons.album_rounded, size: isMobile ? 14 : 16),
                   const SizedBox(width: 4),
-                  Text('Audio (${audioTracks.length})'),
+                  Text('Álbum (${_groupByAlbum(audioTracks).length})'),
+                ]),
+              ),
+              Tab(
+                height: isMobile ? 36 : null,
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.queue_music_rounded, size: isMobile ? 14 : 16),
+                  const SizedBox(width: 4),
+                  Text('Lista de Reproducción'),
+                ]),
+              ),
+              Tab(
+                height: isMobile ? 36 : null,
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.person_rounded, size: isMobile ? 14 : 16),
+                  const SizedBox(width: 4),
+                  Text('Artistas (${_groupByArtist(audioTracks).length})'),
                 ]),
               ),
               Tab(
@@ -132,37 +172,199 @@ class _LibraryPageState extends State<LibraryPage>
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                   Icon(Icons.videocam_rounded, size: isMobile ? 14 : 16),
                   const SizedBox(width: 4),
-                  Text('Video (${videoTracks.length})'),
+                  Text('Videos (${videoTracks.length})'),
                 ]),
               ),
             ],
           );
         }),
 
-        Divider(height: 1, color: context.colors.border),
 
         // ── Content ─────────────────────────────────────────────────────────
         Expanded(
           child: library.loading
               ? Center(child: CircularProgressIndicator(
                   color: Theme.of(context).colorScheme.primary))
-              : currentTracks.isEmpty
-                  ? _EmptyState(
-                      playlist: selected,
-                      tabIndex: _tabController.index,
-                    )
-                  : TabBarView(
-                      controller: _tabController,
-                      children: [
-                        _buildContent(allTracks,   allTracks),
-                        _buildContent(audioTracks, audioTracks),
-                        _buildContent(videoTracks, videoTracks),
-                      ],
-                    ),
+              : TabBarView(
+                  controller: _tabController,
+                  children: [
+                    // Tab 0: Todo
+                    allTracks.isEmpty
+                        ? _EmptyState(playlist: selected, tabIndex: 0)
+                        : _buildContent(allTracks, allTracks),
+                    // Tab 1: Álbum
+                    audioTracks.isEmpty
+                        ? _EmptyState(playlist: selected, tabIndex: 1)
+                        : _buildGroupedContent(_groupByAlbum(audioTracks), audioTracks, Icons.album_rounded),
+                    // Tab 2: Lista de Reproducción
+                    _buildPlaylistContent(library, audioTracks),
+                    // Tab 3: Artistas
+                    audioTracks.isEmpty
+                        ? _EmptyState(playlist: selected, tabIndex: 3)
+                        : _buildGroupedContent(_groupByArtist(audioTracks), audioTracks, Icons.person_rounded),
+                    // Tab 4: Videos
+                    videoTracks.isEmpty
+                        ? _EmptyState(playlist: selected, tabIndex: 4)
+                        : _buildContent(videoTracks, videoTracks),
+                  ],
+                ),
         ),
         if (_isMultiSelectMode)
           _buildSelectionActionBar(context, library, settings, currentTracks),
       ],
+    );
+  }
+
+  /// Grouped content (for Albums / Artists)
+  Widget _buildGroupedContent(Map<String, List<Track>> groups, List<Track> allTracks, IconData icon) {
+    final sortedKeys = groups.keys.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      itemCount: sortedKeys.length,
+      itemBuilder: (context, i) {
+        final key = sortedKeys[i];
+        final tracks = groups[key]!;
+        final coverTrack = tracks.firstWhere(
+          (t) => t.coverUrl != null && t.coverUrl!.isNotEmpty,
+          orElse: () => tracks.first,
+        );
+        return _GroupTile(
+          title: key,
+          subtitle: '${tracks.length} ${tracks.length == 1 ? 'canción' : 'canciones'}',
+          icon: icon,
+          coverUrl: coverTrack.coverUrl,
+          onTap: () {
+            _showGroupTracks(context, key, tracks, allTracks);
+          },
+        );
+      },
+    );
+  }
+
+  /// Playlist content
+  Widget _buildPlaylistContent(LibraryProvider library, List<Track> audioTracks) {
+    final playlists = library.playlists.where((p) => p.name != 'library').toList();
+    if (playlists.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.queue_music_rounded, size: 48, color: context.colors.textSecondary.withValues(alpha: 0.5)),
+            const SizedBox(height: 12),
+            Text(
+              'No hay listas de reproducción',
+              style: TextStyle(color: context.colors.textSecondary, fontSize: 16),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Crea etiquetas para organizar tu música',
+              style: TextStyle(color: context.colors.textSecondary.withValues(alpha: 0.6), fontSize: 13),
+            ),
+          ],
+        ),
+      );
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      itemCount: playlists.length,
+      itemBuilder: (context, i) {
+        final pl = playlists[i];
+        return _GroupTile(
+          title: pl.name,
+          subtitle: pl.name,
+          icon: Icons.queue_music_rounded,
+          coverUrl: null,
+          onTap: () {
+            final settings = context.read<SettingsProvider>();
+            library.selectPlaylist(settings.api, pl);
+          },
+        );
+      },
+    );
+  }
+
+  void _showGroupTracks(BuildContext context, String groupName, List<Track> tracks, List<Track> allTracks) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: context.colors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.7,
+          minChildSize: 0.4,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (context, scrollController) {
+            return Column(
+              children: [
+                // Handle
+                Container(
+                  margin: const EdgeInsets.only(top: 10),
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(
+                    color: context.colors.textSecondary.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    groupName,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: context.colors.textPrimary,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    controller: scrollController,
+                    itemCount: tracks.length,
+                    itemBuilder: (context, i) {
+                      final track = tracks[i];
+                      return ListTile(
+                        leading: track.coverUrl != null && track.coverUrl!.isNotEmpty && getCoverImageProvider(track.coverUrl) != null
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image(image: getCoverImageProvider(track.coverUrl)!, width: 48, height: 48, fit: BoxFit.cover),
+                              )
+                            : Container(
+                                width: 48, height: 48,
+                                decoration: BoxDecoration(
+                                  color: context.colors.surfaceAlt,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(Icons.music_note, color: context.colors.textSecondary),
+                              ),
+                        title: Text(
+                          track.title.isNotEmpty ? track.title : track.filename,
+                          maxLines: 1, overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: context.colors.textPrimary, fontWeight: FontWeight.w600),
+                        ),
+                        subtitle: Text(
+                          track.artist,
+                          maxLines: 1, overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: context.colors.textSecondary, fontSize: 12),
+                        ),
+                        onTap: () {
+                          Navigator.pop(context);
+                          final player = context.read<PlayerProvider>();
+                          final settings = context.read<SettingsProvider>();
+                          player.playTrack(track, tracks, settings);
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
@@ -218,7 +420,7 @@ class _LibraryPageState extends State<LibraryPage>
       top: false,
       child: Container(
         margin: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           color: context.colors.surfaceAlt,
           borderRadius: BorderRadius.circular(16),
@@ -235,9 +437,9 @@ class _LibraryPageState extends State<LibraryPage>
           children: [
             IconButton(
               icon: const Icon(Icons.close),
-              iconSize: 20,
+              iconSize: 26,
               padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
               onPressed: () {
                 setState(() {
                   _isMultiSelectMode = false;
@@ -245,16 +447,54 @@ class _LibraryPageState extends State<LibraryPage>
                 });
               },
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 10),
             Text(
               '${selectedTracks.length} seleccionados',
               style: TextStyle(
                 color: context.colors.textPrimary,
                 fontWeight: FontWeight.bold,
-                fontSize: 13,
+                fontSize: 15,
               ),
             ),
             const SizedBox(width: 8),
+            // Select All / Deselect All toggle
+            TextButton.icon(
+              onPressed: () {
+                setState(() {
+                  if (_selectedTrackFilenames.length == currentTracks.length) {
+                    _selectedTrackFilenames.clear();
+                  } else {
+                    _selectedTrackFilenames.clear();
+                    _selectedTrackFilenames.addAll(currentTracks.map((t) => t.filename));
+                  }
+                });
+              },
+              icon: Icon(
+                _selectedTrackFilenames.length == currentTracks.length
+                    ? Icons.deselect_rounded
+                    : Icons.select_all_rounded,
+                size: 18,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              label: Text(
+                _selectedTrackFilenames.length == currentTracks.length
+                    ? 'Ninguno'
+                    : 'Todo (${currentTracks.length})',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+            const SizedBox(width: 12),
             Expanded(
               child: Align(
                 alignment: Alignment.centerRight,
@@ -265,50 +505,50 @@ class _LibraryPageState extends State<LibraryPage>
                     children: [
                       IconButton(
                         icon: const Icon(Icons.playlist_add),
-                        iconSize: 20,
+                        iconSize: 28,
                         padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
                         color: Theme.of(context).colorScheme.primary,
                         tooltip: 'Añadir a playlist',
                         onPressed: selectedTracks.isEmpty ? null : () => _onBatchAdd(context, library, settings, selectedTracks),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 12),
                       IconButton(
                         icon: const Icon(Icons.drive_file_move_rounded),
-                        iconSize: 20,
+                        iconSize: 28,
                         padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
                         color: Colors.cyan,
                         tooltip: 'Mover a playlist',
                         onPressed: selectedTracks.isEmpty ? null : () => _onBatchMove(context, library, settings, selectedTracks),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 12),
                       IconButton(
                         icon: const Icon(Icons.auto_awesome_rounded),
-                        iconSize: 20,
+                        iconSize: 28,
                         padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
                         color: Colors.orange,
                         tooltip: 'Autocompletar metadatos (API)',
                         onPressed: selectedTracks.isEmpty ? null : () => _onBatchAutocomplete(context, library, settings, selectedTracks),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 12),
                       IconButton(
                         icon: const Icon(Icons.delete_rounded),
-                        iconSize: 20,
+                        iconSize: 28,
                         padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
                         color: context.colors.error,
                         tooltip: 'Eliminar archivos',
                         onPressed: selectedTracks.isEmpty ? null : () => _onBatchDelete(context, library, settings, selectedTracks),
                       ),
                       if (widget.onWiFiShare != null) ...[
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 12),
                         IconButton(
                           icon: const Icon(Icons.wifi_rounded),
-                          iconSize: 20,
+                          iconSize: 28,
                           padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                          constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
                           color: Colors.lightGreen,
                           tooltip: 'Compartir vía WiFi',
                           onPressed: selectedTracks.isEmpty ? null : () => widget.onWiFiShare!(selectedTracks),
@@ -584,6 +824,26 @@ class _PageHeader extends StatelessWidget {
     );
 
     // Desktop: full toolbar.  Mobile: three-dot menu.
+
+    PopupMenuItem<String> _sortMenuItem(String value, String label, bool isActive, BuildContext ctx) {
+      return PopupMenuItem<String>(
+        value: value,
+        child: Row(
+          children: [
+            if (isActive)
+              Icon(Icons.check_rounded, size: 16, color: Theme.of(ctx).colorScheme.primary)
+            else
+              const SizedBox(width: 16),
+            const SizedBox(width: 8),
+            Text(label, style: TextStyle(
+              color: isActive ? Theme.of(ctx).colorScheme.primary : ctx.colors.textPrimary,
+              fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+            )),
+          ],
+        ),
+      );
+    }
+
     final Widget actionsWidget;
 
     if (isMobile) {
@@ -618,6 +878,11 @@ class _PageHeader extends StatelessWidget {
             case 'sort_artistDesc':
               context.read<LibraryProvider>().setSortOption(SortOption.artistDesc);
               break;
+            case 'settings':
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SettingsPage()),
+              );
+              break;
           }
         },
         itemBuilder: (ctx) => [
@@ -635,20 +900,36 @@ class _PageHeader extends StatelessWidget {
               ],
             ),
           ),
-          const PopupMenuDivider(),
           PopupMenuItem(
-            enabled: false,
-            height: 32,
-            child: Text('Ordenar por', style: TextStyle(
-              fontSize: 12, fontWeight: FontWeight.w600,
-              color: context.colors.textSecondary,
-            )),
+            value: 'sort_submenu',
+            child: PopupMenuButton<String>(
+              offset: const Offset(180, 0),
+              color: ctx.colors.surfaceAlt,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              onSelected: (val) {
+                Navigator.of(ctx).pop(val);
+              },
+              itemBuilder: (_) {
+                final currentSort = ctx.read<LibraryProvider>().sortOption;
+                return [
+                  _sortMenuItem('sort_dateAdded', 'Más recientes', currentSort == SortOption.dateAdded, ctx),
+                  _sortMenuItem('sort_titleAsc', 'Título (A-Z)', currentSort == SortOption.titleAsc, ctx),
+                  _sortMenuItem('sort_titleDesc', 'Título (Z-A)', currentSort == SortOption.titleDesc, ctx),
+                  _sortMenuItem('sort_artistAsc', 'Artista (A-Z)', currentSort == SortOption.artistAsc, ctx),
+                  _sortMenuItem('sort_artistDesc', 'Artista (Z-A)', currentSort == SortOption.artistDesc, ctx),
+                ];
+              },
+              child: Row(
+                children: [
+                  Icon(Icons.sort_rounded, size: 18, color: ctx.colors.textSecondary),
+                  const SizedBox(width: 10),
+                  Text('Ordenar por', style: TextStyle(color: ctx.colors.textPrimary)),
+                  const Spacer(),
+                  Icon(Icons.chevron_right_rounded, size: 18, color: ctx.colors.textSecondary),
+                ],
+              ),
+            ),
           ),
-          const PopupMenuItem(value: 'sort_dateAdded', child: Text('  Más recientes')),
-          const PopupMenuItem(value: 'sort_titleAsc', child: Text('  Título (A-Z)')),
-          const PopupMenuItem(value: 'sort_titleDesc', child: Text('  Título (Z-A)')),
-          const PopupMenuItem(value: 'sort_artistAsc', child: Text('  Artista (A-Z)')),
-          const PopupMenuItem(value: 'sort_artistDesc', child: Text('  Artista (Z-A)')),
           const PopupMenuDivider(),
           PopupMenuItem(
             value: 'toggle_view',
@@ -667,6 +948,17 @@ class _PageHeader extends StatelessWidget {
                 Icon(Icons.refresh_rounded, size: 18, color: context.colors.textSecondary),
                 const SizedBox(width: 10),
                 const Text('Actualizar'),
+              ],
+            ),
+          ),
+          const PopupMenuDivider(),
+          PopupMenuItem(
+            value: 'settings',
+            child: Row(
+              children: [
+                Icon(Icons.settings_rounded, size: 18, color: context.colors.textSecondary),
+                const SizedBox(width: 10),
+                const Text('Ajustes'),
               ],
             ),
           ),
@@ -760,6 +1052,23 @@ class _PageHeader extends StatelessWidget {
                   tooltip: 'Actualizar',
                   onPressed: () {
                     context.read<LibraryProvider>().loadTracks(settings.api);
+                  },
+                  style: IconButton.styleFrom(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    backgroundColor: Colors.transparent,
+                    side: BorderSide.none,
+                  ),
+                ),
+                Container(width: 1, height: 20, color: context.colors.border.withOpacity(0.3)),
+                // Settings button
+                IconButton(
+                  icon: const Icon(Icons.settings_rounded, size: 19),
+                  color: context.colors.textSecondary,
+                  tooltip: 'Ajustes',
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const SettingsPage()),
+                    );
                   },
                   style: IconButton.styleFrom(
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -961,6 +1270,245 @@ class _TrackListRow extends StatefulWidget {
 class _TrackListRowState extends State<_TrackListRow> {
   bool _hovered = false;
 
+  List<PopupMenuEntry<String>> _buildMenuItems(BuildContext context, Track track) {
+    final library = context.read<LibraryProvider>();
+    final settings = context.read<SettingsProvider>();
+    final playlists = library.playlists
+        .where((p) => !p.isLibrary && p.name != track.playlist)
+        .toList();
+
+    return [
+      const PopupMenuItem(value: '__edit__', child: Text('Editar metadatos')),
+      const PopupMenuItem(value: '__auto__', child: Text('Autocompletar metadatos (API)')),
+      PopupMenuItem(
+        value: '__lyrics__',
+        child: Row(
+          children: [
+            const Expanded(child: Text('Descargar letra')),
+            if (LyricsService.hasLocal(settings.musicFolder, track.filename))
+              Icon(Icons.offline_pin_rounded, size: 16, color: Colors.green.shade400),
+          ],
+        ),
+      ),
+      PopupMenuItem(
+        value: '__delete__',
+        child: Text('Eliminar archivo', style: TextStyle(color: context.colors.error)),
+      ),
+      const PopupMenuDivider(),
+      PopupMenuItem(enabled: false,
+        child: Text('Mover a...',
+            style: TextStyle(
+                color: context.colors.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w600)),
+      ),
+      if (track.playlist.isNotEmpty)
+        const PopupMenuItem(value: '__root__', child: Text('Biblioteca (raíz)')),
+      ...playlists.map(
+        (pl) => PopupMenuItem(value: pl.name, child: Text(pl.name)),
+      ),
+      const PopupMenuDivider(),
+      const PopupMenuItem(
+        value: '__new_playlist__',
+        child: Row(
+          children: [
+            Icon(Icons.playlist_add_rounded, size: 18),
+            SizedBox(width: 8),
+            Text('Crear lista de reproducción'),
+          ],
+        ),
+      ),
+      const PopupMenuItem(
+        value: '__new_album__',
+        child: Row(
+          children: [
+            Icon(Icons.album_rounded, size: 18),
+            SizedBox(width: 8),
+            Text('Crear álbum'),
+          ],
+        ),
+      ),
+    ];
+  }
+
+  void _handleMenuAction(BuildContext context, Track track, String action) {
+    final renderBox = context.findRenderObject() as RenderBox;
+    final position = renderBox.localToGlobal(Offset(renderBox.size.width, renderBox.size.height / 2));
+    // Delegate to existing handler
+    _handleTrackAction(context, track, action);
+  }
+
+  Future<void> _handleTrackAction(BuildContext context, Track track, String action) async {
+    final library = context.read<LibraryProvider>();
+    final settings = context.read<SettingsProvider>();
+
+    if (action == '__edit__') {
+      final changed = await showDialog<bool>(
+        context: context,
+        builder: (_) => MetadataDialog(track: track),
+      );
+      if (changed == true && context.mounted) {
+        context.read<LibraryProvider>().loadTracks(settings.api);
+      }
+      return;
+    }
+
+    if (action == '__auto__') {
+      try {
+        final jobId = await settings.api.autoFillMetadata([track.filename]);
+        if (context.mounted) {
+          await showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (ctx) => _AutofillProgressDialog(jobId: jobId, settings: settings),
+          );
+          context.read<LibraryProvider>().loadTracks(settings.api);
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: context.colors.error,
+          ));
+        }
+      }
+      return;
+    }
+
+    if (action == '__lyrics__') {
+      try {
+        final result = await settings.api.saveLyrics(
+          filename: track.filename,
+          title: track.title.isNotEmpty ? track.title : track.filename,
+          artist: track.artist,
+        );
+        if (context.mounted) {
+          if (result['saved'] == true) {
+            final musicFolder = settings.musicFolder;
+            if (musicFolder.isNotEmpty) {
+              final syncedContent = result['synced'] as String?;
+              final plainContent = result['plain'] as String?;
+              if (syncedContent != null && syncedContent.trim().isNotEmpty) {
+                await LyricsService.saveLrc(musicFolder, track.filename, syncedContent);
+              } else if (plainContent != null && plainContent.trim().isNotEmpty) {
+                await LyricsService.saveTxt(musicFolder, track.filename, plainContent);
+              }
+            }
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text('Letra guardada (${result['type'] == 'synced' ? 'sincronizada' : 'texto plano'})'),
+                backgroundColor: context.colors.success,
+                duration: const Duration(seconds: 3),
+              ));
+            }
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(result['error'] ?? 'No se pudo descargar la letra.'),
+              backgroundColor: context.colors.error,
+            ));
+          }
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: context.colors.error,
+          ));
+        }
+      }
+      return;
+    }
+
+    if (action == '__delete__') {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Eliminar canción'),
+          content: Text('¿Seguro que quieres eliminar "${track.title.isNotEmpty ? track.title : track.filename}"?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancelar')),
+            TextButton(onPressed: () => Navigator.of(context).pop(true),
+              child: Text('Eliminar', style: TextStyle(color: context.colors.error))),
+          ],
+        ),
+      );
+      if (confirm == true) {
+        try {
+          await library.deleteTrack(settings.api, track);
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: const Text('Archivo eliminado'),
+              backgroundColor: context.colors.success,
+            ));
+          }
+        } catch (e) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: context.colors.error));
+          }
+        }
+      }
+      return;
+    }
+
+    if (action == '__new_playlist__') {
+      final name = await showDialog<String>(
+        context: context,
+        builder: (_) => _NameInputDialog(title: 'Nueva lista de reproducción', hint: 'Nombre de la lista'),
+      );
+      if (name != null && name.trim().isNotEmpty && context.mounted) {
+        try {
+          await library.createPlaylist(settings.api, name.trim());
+          await library.moveTrack(settings.api, track, name.trim());
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text('Lista "$name" creada'),
+              backgroundColor: context.colors.success,
+            ));
+          }
+        } catch (e) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: context.colors.error));
+          }
+        }
+      }
+      return;
+    }
+
+    if (action == '__new_album__') {
+      final name = await showDialog<String>(
+        context: context,
+        builder: (_) => _NameInputDialog(title: 'Nuevo álbum', hint: 'Nombre del álbum'),
+      );
+      if (name != null && name.trim().isNotEmpty && context.mounted) {
+        try {
+          await library.createPlaylist(settings.api, name.trim());
+          await library.moveTrack(settings.api, track, name.trim());
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text('Álbum "$name" creado'),
+              backgroundColor: context.colors.success,
+            ));
+          }
+        } catch (e) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: context.colors.error));
+          }
+        }
+      }
+      return;
+    }
+
+    // Move to playlist
+    final toPlaylist = action == '__root__' ? null : action;
+    await library.moveTrack(settings.api, track, toPlaylist);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Movida a ${toPlaylist ?? 'Biblioteca'}'),
+        backgroundColor: context.colors.success,
+      ));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final track = widget.track;
@@ -969,139 +1517,129 @@ class _TrackListRowState extends State<_TrackListRow> {
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
-        onTap: () async {
-          if (widget.isMultiSelectMode) {
-            widget.onToggled();
-            return;
-          }
-          try {
-            final settings = context.read<SettingsProvider>();
-            await context.read<PlayerProvider>().playTrack(
-                  widget.track, widget.queue, settings);
-          } catch (e) {
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text(e.toString().replaceAll('Exception: ', '')),
-                backgroundColor: context.colors.error,
-                duration: const Duration(seconds: 4),
-              ));
-            }
-          }
-        },
-        onLongPress: widget.onLongPressed,
-        onSecondaryTapUp: (d) {
-          if (!widget.isMultiSelectMode) {
-            _showTrackContextMenu(context, track, d.globalPosition);
-          }
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          margin: const EdgeInsets.only(bottom: 8),
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: widget.isSelected
+              ? Theme.of(context).colorScheme.primary.withOpacity(0.12)
+              : (_hovered ? context.colors.surfaceAlt : context.colors.surface),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
             color: widget.isSelected
-                ? Theme.of(context).colorScheme.primary.withOpacity(0.12)
-                : (_hovered ? context.colors.surfaceAlt : context.colors.surface),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: widget.isSelected
-                  ? Theme.of(context).colorScheme.primary
-                  : (_hovered ? Theme.of(context).colorScheme.primary.withOpacity(0.3) : context.colors.border),
-            ),
+                ? Theme.of(context).colorScheme.primary
+                : (_hovered ? Theme.of(context).colorScheme.primary.withOpacity(0.3) : context.colors.border),
           ),
-          child: Row(
-            children: [
-              if (widget.isMultiSelectMode) ...[
-                Checkbox(
-                  value: widget.isSelected,
-                  onChanged: (_) => widget.onToggled(),
-                  activeColor: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-              ],
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: SizedBox(
-                  width: 48,
-                  height: 48,
-                  child: TrackCoverImage(
-                    coverUrl: track.coverUrl,
-                    width: 48,
-                    height: 48,
-                    fit: BoxFit.cover,
-                    errorWidget: _CoverPlaceholderSmall(isVideo: _isVideo(track)),
-                  ),
-                ),
+        ),
+        child: Row(
+          children: [
+            if (widget.isMultiSelectMode) ...[
+              Checkbox(
+                value: widget.isSelected,
+                onChanged: (_) => widget.onToggled(),
+                activeColor: Theme.of(context).colorScheme.primary,
               ),
-              const SizedBox(width: 16),
-              // Title & Artist
-              Expanded(
-                flex: 3,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
+              const SizedBox(width: 8),
+            ],
+            // ── Tappable content area ──
+            Expanded(
+              child: InkWell(
+                borderRadius: BorderRadius.circular(8),
+                onTap: () async {
+                  if (widget.isMultiSelectMode) {
+                    widget.onToggled();
+                    return;
+                  }
+                  try {
+                    final settings = context.read<SettingsProvider>();
+                    await context.read<PlayerProvider>().playTrack(
+                          widget.track, widget.queue, settings);
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text(e.toString().replaceAll('Exception: ', '')),
+                        backgroundColor: context.colors.error,
+                        duration: const Duration(seconds: 4),
+                      ));
+                    }
+                  }
+                },
+                onLongPress: widget.onLongPressed,
+                child: Row(
                   children: [
-                    Text(
-                      track.title.isNotEmpty ? track.title : track.filename,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: context.colors.textPrimary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: SizedBox(
+                        width: 48,
+                        height: 48,
+                        child: TrackCoverImage(
+                          coverUrl: track.coverUrl,
+                          width: 48,
+                          height: 48,
+                          fit: BoxFit.cover,
+                          errorWidget: _CoverPlaceholderSmall(isVideo: _isVideo(track)),
+                        ),
                       ),
                     ),
-                    if (track.artist.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        track.artist,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: context.colors.textSecondary,
-                          fontSize: 12,
+                    const SizedBox(width: 16),
+                    Expanded(
+                      flex: 3,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            track.title.isNotEmpty ? track.title : track.filename,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: context.colors.textPrimary,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                              decoration: TextDecoration.none,
+                            ),
+                          ),
+                          if (track.artist.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              track.artist,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: context.colors.textSecondary,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    if (!isMobile) ...[
+                      Expanded(
+                        flex: 2,
+                        child: Text(
+                          track.album,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: context.colors.textSecondary, fontSize: 13),
+                        ),
+                      ),
+                      SizedBox(
+                        width: 60,
+                        child: Text(
+                          track.year,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: context.colors.textSecondary, fontSize: 13),
                         ),
                       ),
                     ],
                   ],
                 ),
               ),
-              if (!isMobile) ...[
-                // Album
-                Expanded(
-                  flex: 2,
-                  child: Text(
-                    track.album,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: context.colors.textSecondary, fontSize: 13),
-                  ),
-                ),
-                // Year
-                SizedBox(
-                  width: 60,
-                  child: Text(
-                    track.year,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: context.colors.textSecondary, fontSize: 13),
-                  ),
-                ),
-              ],
-              // Options Menu Button
-              if (!widget.isMultiSelectMode)
-                IconButton(
-                  icon: const Icon(Icons.more_horiz),
-                  color: context.colors.textSecondary,
-                  onPressed: () {
-                    final renderBox = context.findRenderObject() as RenderBox;
-                    final position = renderBox.localToGlobal(Offset(renderBox.size.width, renderBox.size.height / 2));
-                    _showTrackContextMenu(context, track, position);
-                  },
-                ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -1164,6 +1702,7 @@ void _showTrackContextMenu(BuildContext context, Track track, Offset position) a
         child: Text('Eliminar archivo', style: TextStyle(color: context.colors.error)),
       ),
       const PopupMenuDivider(),
+      // ── Organizar ──
       PopupMenuItem(enabled: false,
         child: Text('Mover a...',
             style: TextStyle(
@@ -1178,6 +1717,27 @@ void _showTrackContextMenu(BuildContext context, Track track, Offset position) a
       // Move to each playlist
       ...playlists.map(
         (pl) => PopupMenuItem(value: pl.name, child: Text(pl.name)),
+      ),
+      const PopupMenuDivider(),
+      const PopupMenuItem(
+        value: '__new_playlist__',
+        child: Row(
+          children: [
+            Icon(Icons.playlist_add_rounded, size: 18),
+            SizedBox(width: 8),
+            Text('Crear lista de reproducción'),
+          ],
+        ),
+      ),
+      const PopupMenuItem(
+        value: '__new_album__',
+        child: Row(
+          children: [
+            Icon(Icons.album_rounded, size: 18),
+            SizedBox(width: 8),
+            Text('Crear álbum'),
+          ],
+        ),
       ),
     ],
   );
@@ -1312,6 +1872,68 @@ void _showTrackContextMenu(BuildContext context, Track track, Offset position) a
       return;
     }
 
+    if (action == '__new_playlist__') {
+      final name = await showDialog<String>(
+        context: context,
+        builder: (_) => _NameInputDialog(
+          title: 'Nueva lista de reproducción',
+          hint: 'Nombre de la lista',
+        ),
+      );
+      if (name != null && name.trim().isNotEmpty && context.mounted) {
+        try {
+          await library.createPlaylist(settings.api, name.trim());
+          await library.moveTrack(settings.api, track, name.trim());
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text('Lista "$name" creada y canción movida'),
+              backgroundColor: context.colors.success,
+              duration: const Duration(seconds: 2),
+            ));
+          }
+        } catch (e) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text('Error: $e'),
+              backgroundColor: context.colors.error,
+            ));
+          }
+        }
+      }
+      return;
+    }
+
+    if (action == '__new_album__') {
+      final name = await showDialog<String>(
+        context: context,
+        builder: (_) => _NameInputDialog(
+          title: 'Nuevo álbum',
+          hint: 'Nombre del álbum',
+        ),
+      );
+      if (name != null && name.trim().isNotEmpty && context.mounted) {
+        try {
+          await library.createPlaylist(settings.api, name.trim());
+          await library.moveTrack(settings.api, track, name.trim());
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text('Álbum "$name" creado y canción movida'),
+              backgroundColor: context.colors.success,
+              duration: const Duration(seconds: 2),
+            ));
+          }
+        } catch (e) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text('Error: $e'),
+              backgroundColor: context.colors.error,
+            ));
+          }
+        }
+      }
+      return;
+    }
+
     final toPlaylist = action == '__root__' ? null : action;
     await library.moveTrack(settings.api, track, toPlaylist);
     if (context.mounted) {
@@ -1323,6 +1945,50 @@ void _showTrackContextMenu(BuildContext context, Track track, Offset position) a
       ));
     }
   }
+}
+
+// ── Name Input Dialog ─────────────────────────────────────────────────────────
+class _NameInputDialog extends StatefulWidget {
+  final String title;
+  final String hint;
+  const _NameInputDialog({required this.title, required this.hint});
+
+  @override
+  State<_NameInputDialog> createState() => _NameInputDialogState();
+}
+
+class _NameInputDialogState extends State<_NameInputDialog> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text(widget.title),
+    content: TextField(
+      controller: _controller,
+      autofocus: true,
+      decoration: InputDecoration(
+        hintText: widget.hint,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      onSubmitted: (_) => Navigator.of(context).pop(_controller.text),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.of(context).pop(),
+        child: const Text('Cancelar'),
+      ),
+      TextButton(
+        onPressed: () => Navigator.of(context).pop(_controller.text),
+        child: const Text('Crear'),
+      ),
+    ],
+  );
 }
 
 // ── Helper: detect video by extension ────────────────────────────────────────
@@ -1892,4 +2558,51 @@ Future<void> _confirmDeletePlaylist(
 
 
 
+/// Reusable tile for grouped views (Albums, Artists, Playlists)
+class _GroupTile extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final String? coverUrl;
+  final VoidCallback onTap;
 
+  const _GroupTile({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.coverUrl,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hasCover = coverUrl != null && coverUrl!.isNotEmpty && getCoverImageProvider(coverUrl) != null;
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      leading: ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: SizedBox(
+          width: 52, height: 52,
+          child: hasCover
+              ? Image(image: getCoverImageProvider(coverUrl)!, fit: BoxFit.cover)
+              : Container(
+                  color: context.colors.surfaceAlt,
+                  child: Icon(icon, color: context.colors.textSecondary, size: 26),
+                ),
+        ),
+      ),
+      title: Text(
+        title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(color: context.colors.textPrimary, fontWeight: FontWeight.w600, fontSize: 15),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: TextStyle(color: context.colors.textSecondary, fontSize: 12),
+      ),
+      trailing: Icon(Icons.chevron_right_rounded, color: context.colors.textSecondary),
+      onTap: onTap,
+    );
+  }
+}

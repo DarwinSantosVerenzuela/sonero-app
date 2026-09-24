@@ -21,146 +21,169 @@ class EqualizerView extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: colors.border.withOpacity(0.2)),
       ),
-      child: SingleChildScrollView(
-        padding: EdgeInsets.all(isMobile ? 16 : 24),
+      child: Padding(
+        padding: EdgeInsets.all(isMobile ? 16 : 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // ── Header ──────────────────────────────────────────────────
             _Header(enabled: eq.enabled, onToggle: eq.toggle, onReset: eq.reset),
-            const SizedBox(height: 16),
-
-            // ── Preset chips ────────────────────────────────────────────
             if (eq.enabled) ...[
+              const SizedBox(height: 12),
+
+              // ── Preset chips ────────────────────────────────────────────
               _PresetSelector(selected: eq.preset, onSelected: eq.setPreset),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
 
               // ── EQ Bands ────────────────────────────────────────────────
-              _BandSliders(bands: eq.bands, accent: accent, onChanged: eq.setBand),
-              const SizedBox(height: 24),
-
-              // ── Bass Boost ──────────────────────────────────────────────
-              _SectionCard(
-                colors: colors,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _ToggleRow(
-                      icon: Icons.speaker_rounded,
-                      label: 'Bass Boost',
-                      value: eq.bassBoostEnabled,
-                      onChanged: eq.setBassBoostEnabled,
-                      colors: colors,
-                      accent: accent,
-                    ),
-                    if (eq.bassBoostEnabled) ...[
-                      const SizedBox(height: 8),
-                      _LabeledSlider(
-                        label: '${eq.bassBoostGain.toStringAsFixed(0)} dB',
-                        value: eq.bassBoostGain,
-                        min: 0,
-                        max: 30,
-                        accent: accent,
-                        colors: colors,
-                        onChanged: eq.setBassBoostGain,
-                      ),
-                    ],
-                  ],
-                ),
+              SizedBox(
+                height: isMobile ? 180 : 160,
+                child: _BandSliders(bands: eq.bands, accent: accent, onChanged: eq.setBand),
               ),
               const SizedBox(height: 12),
 
-              // ── Channel Mode ────────────────────────────────────────────
-              _SectionCard(
-                colors: colors,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
+              // ── Bottom sections ─────────────────────────────────────────
+              if (isMobile) ...[
+                // Mobile: stacked
+                _SectionCard(
+                  colors: colors,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _ToggleRow(icon: Icons.speaker_rounded, label: 'Bass Boost', value: eq.bassBoostEnabled, onChanged: eq.setBassBoostEnabled, colors: colors, accent: accent),
+                      if (eq.bassBoostEnabled) ...[
+                        const SizedBox(height: 8),
+                        _LabeledSlider(label: '${eq.bassBoostGain.toStringAsFixed(0)} dB', value: eq.bassBoostGain, min: 0, max: 30, accent: accent, colors: colors, onChanged: eq.setBassBoostGain),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
+                _SectionCard(
+                  colors: colors,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(children: [
                         Icon(Icons.headphones_rounded, size: 18, color: colors.textSecondary),
                         const SizedBox(width: 8),
-                        Text('Canal', style: TextStyle(
-                          color: colors.textPrimary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                        )),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    _ChannelModeSelector(
-                      mode: eq.channelMode,
-                      onChanged: eq.setChannelMode,
-                      accent: accent,
-                      colors: colors,
-                    ),
-                  ],
+                        Text('Canal', style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w600, fontSize: 14)),
+                      ]),
+                      const SizedBox(height: 10),
+                      _ChannelModeSelector(mode: eq.channelMode, onChanged: eq.setChannelMode, accent: accent, colors: colors),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-
-              // ── Loudness & Balance ──────────────────────────────────────
-              _SectionCard(
-                colors: colors,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _ToggleRow(
-                      icon: Icons.volume_up_rounded,
-                      label: 'Potenciador de Audio',
-                      subtitle: 'Normalización EBU R128',
-                      value: eq.loudnessEnabled,
-                      onChanged: eq.setLoudnessEnabled,
-                      colors: colors,
-                      accent: accent,
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Icon(Icons.tune_rounded, size: 18, color: colors.textSecondary),
-                        const SizedBox(width: 8),
-                        Text('Balance', style: TextStyle(
-                          color: colors.textPrimary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                        )),
-                        const Spacer(),
-                        Text(
-                          eq.balance == 0
-                              ? 'Centro'
-                              : eq.balance < 0
-                                  ? 'L ${(-eq.balance * 100).toStringAsFixed(0)}%'
-                                  : 'R ${(eq.balance * 100).toStringAsFixed(0)}%',
-                          style: TextStyle(color: colors.textSecondary, fontSize: 12),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Text('L', style: TextStyle(color: colors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600)),
-                        Expanded(
-                          child: SliderTheme(
-                            data: _sliderTheme(accent, colors),
-                            child: Slider(
-                              value: eq.balance,
-                              min: -1.0,
-                              max: 1.0,
-                              onChanged: eq.setBalance,
-                            ),
+                const SizedBox(height: 10),
+                _SectionCard(
+                  colors: colors,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _ToggleRow(icon: Icons.volume_up_rounded, label: 'Potenciador de Audio', subtitle: 'Normalización EBU R128', value: eq.loudnessEnabled, onChanged: eq.setLoudnessEnabled, colors: colors, accent: accent),
+                      const SizedBox(height: 12),
+                      _buildBalanceRow(eq, colors, accent),
+                    ],
+                  ),
+                ),
+              ] else ...[
+                // Desktop: side by side
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Bass Boost
+                      Expanded(
+                        child: _SectionCard(
+                          colors: colors,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _ToggleRow(icon: Icons.speaker_rounded, label: 'Bass Boost', value: eq.bassBoostEnabled, onChanged: eq.setBassBoostEnabled, colors: colors, accent: accent),
+                              if (eq.bassBoostEnabled) ...[
+                                const SizedBox(height: 6),
+                                _LabeledSlider(label: '${eq.bassBoostGain.toStringAsFixed(0)} dB', value: eq.bassBoostGain, min: 0, max: 30, accent: accent, colors: colors, onChanged: eq.setBassBoostGain),
+                              ],
+                            ],
                           ),
                         ),
-                        Text('R', style: TextStyle(color: colors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600)),
-                      ],
-                    ),
-                  ],
+                      ),
+                      const SizedBox(width: 10),
+                      // Channel
+                      Expanded(
+                        child: _SectionCard(
+                          colors: colors,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(children: [
+                                Icon(Icons.headphones_rounded, size: 18, color: colors.textSecondary),
+                                const SizedBox(width: 8),
+                                Text('Canal', style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w600, fontSize: 14)),
+                              ]),
+                              const SizedBox(height: 8),
+                              _ChannelModeSelector(mode: eq.channelMode, onChanged: eq.setChannelMode, accent: accent, colors: colors),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      // Loudness & Balance
+                      Expanded(
+                        child: _SectionCard(
+                          colors: colors,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _ToggleRow(icon: Icons.volume_up_rounded, label: 'Audio', subtitle: 'EBU R128', value: eq.loudnessEnabled, onChanged: eq.setLoudnessEnabled, colors: colors, accent: accent),
+                              const SizedBox(height: 8),
+                              _buildBalanceRow(eq, colors, accent),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+              ],
             ],
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildBalanceRow(EqualizerProvider eq, SoneroColors colors, Color accent) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.tune_rounded, size: 16, color: colors.textSecondary),
+            const SizedBox(width: 6),
+            Text('Balance', style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w600, fontSize: 13)),
+            const Spacer(),
+            Text(
+              eq.balance == 0 ? 'Centro' : eq.balance < 0 ? 'L ${(-eq.balance * 100).toStringAsFixed(0)}%' : 'R ${(eq.balance * 100).toStringAsFixed(0)}%',
+              style: TextStyle(color: colors.textSecondary, fontSize: 11),
+            ),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Row(
+          children: [
+            Text('L', style: TextStyle(color: colors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600)),
+            Expanded(
+              child: SliderTheme(
+                data: _sliderTheme(accent, colors),
+                child: Slider(value: eq.balance, min: -1.0, max: 1.0, onChanged: eq.setBalance),
+              ),
+            ),
+            Text('R', style: TextStyle(color: colors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600)),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -554,43 +577,35 @@ void showEqualizerDialog(BuildContext context) {
       barrierColor: Colors.black54,
       enableDrag: true,
       useSafeArea: true,
-      transitionAnimationController: AnimationController(
-        vsync: Navigator.of(context),
-        duration: const Duration(milliseconds: 400),
-      ),
-      builder: (_) => DraggableScrollableSheet(
-        initialChildSize: 0.88,
-        minChildSize: 0.4,
-        maxChildSize: 0.95,
-        snap: true,
-        snapSizes: const [0.4, 0.88, 0.95],
-        builder: (ctx, scrollController) => Container(
-          decoration: BoxDecoration(
-            color: context.colors.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.3),
-                blurRadius: 20,
-                offset: const Offset(0, -4),
+      builder: (_) => AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+        height: MediaQuery.of(context).size.height * 0.9,
+        decoration: BoxDecoration(
+          color: context.colors.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 20,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // Drag handle
+            Container(
+              margin: const EdgeInsets.only(top: 10, bottom: 4),
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: context.colors.border.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(2),
               ),
-            ],
-          ),
-          child: Column(
-            children: [
-              // Drag handle
-              Container(
-                margin: const EdgeInsets.only(top: 10, bottom: 4),
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: context.colors.border.withOpacity(0.5),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const Expanded(child: EqualizerView()),
-            ],
-          ),
+            ),
+            const Expanded(child: EqualizerView()),
+          ],
         ),
       ),
     );
@@ -602,11 +617,17 @@ void showEqualizerDialog(BuildContext context) {
       barrierColor: Colors.black54,
       transitionDuration: const Duration(milliseconds: 350),
       pageBuilder: (_, __, ___) => Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480, maxHeight: 680),
-          child: Material(
-            color: Colors.transparent,
-            child: const EqualizerView(),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 30),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.7,
+              maxHeight: MediaQuery.of(context).size.height * 0.85,
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: const EqualizerView(),
+            ),
           ),
         ),
       ),

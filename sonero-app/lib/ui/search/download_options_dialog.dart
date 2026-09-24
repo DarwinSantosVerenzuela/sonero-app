@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/library_provider.dart';
 
+enum _DestCategory { album, playlist, artist }
+
 class DownloadOptionsDialog extends StatefulWidget {
   final String videoUrl;
   final String title;
@@ -26,6 +28,8 @@ class _DownloadOptionsDialogState extends State<DownloadOptionsDialog> {
   String? _errorMessage;
   double _progress = 0.0;
   String _step = '';
+  _DestCategory _destinationCategory = _DestCategory.playlist;
+  final TextEditingController _artistController = TextEditingController();
 
   List<dynamic>? _formats;
   String? _selectedFormatId;
@@ -40,6 +44,17 @@ class _DownloadOptionsDialogState extends State<DownloadOptionsDialog> {
   void initState() {
     super.initState();
     _fetchFormats();
+    // Try to extract artist from title (e.g. "Artist - Song Title")
+    final parts = widget.title.split(RegExp(r'\s*[-–—]\s*'));
+    if (parts.length >= 2) {
+      _artistController.text = parts.first.trim();
+    }
+  }
+
+  @override
+  void dispose() {
+    _artistController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchFormats() async {
@@ -542,6 +557,69 @@ class _DownloadOptionsDialogState extends State<DownloadOptionsDialog> {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _DestinationCategoryBar extends StatelessWidget {
+  final _DestCategory selected;
+  final ValueChanged<_DestCategory>? onChanged;
+
+  const _DestinationCategoryBar({required this.selected, this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = Theme.of(context).colorScheme.primary;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).dividerColor.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      padding: const EdgeInsets.all(3),
+      child: Row(
+        children: [
+          _buildTab(context, _DestCategory.album, Icons.album_rounded, 'Álbum', accent),
+          const SizedBox(width: 4),
+          _buildTab(context, _DestCategory.playlist, Icons.playlist_play_rounded, 'Lista', accent),
+          const SizedBox(width: 4),
+          _buildTab(context, _DestCategory.artist, Icons.person_rounded, 'Artista', accent),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTab(BuildContext context, _DestCategory cat, IconData icon, String label, Color accent) {
+    final isActive = selected == cat;
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: onChanged != null ? () => onChanged!(cat) : null,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: isActive ? accent.withOpacity(0.15) : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            border: isActive ? Border.all(color: accent.withOpacity(0.3), width: 1) : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 14, color: isActive ? accent : Theme.of(context).textTheme.bodySmall?.color),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                  color: isActive ? accent : Theme.of(context).textTheme.bodySmall?.color,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

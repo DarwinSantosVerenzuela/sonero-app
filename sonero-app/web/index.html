@@ -30,6 +30,7 @@
       overflow: hidden;
     }
 
+
     .loading-screen {
       position: fixed;
       inset: 0;
@@ -154,6 +155,37 @@
         setTimeout(() => loader.remove(), 500);
       }
     }
+
+    // Kill Flutter's default loading bar — watch for any injected elements
+    (function() {
+      function killFlutterLoader() {
+        // Flutter injects a div with a loading indicator - find and hide it
+        document.querySelectorAll('body > div').forEach(function(el) {
+          if (el.id === 'loading-screen') return;
+          // Check if this is a Flutter-injected loading element (not the app itself)
+          var style = el.getAttribute('style') || '';
+          if (style.includes('position') && style.includes('top') && !el.querySelector('flt-glass-pane') && !el.querySelector('flutter-view')) {
+            el.style.display = 'none';
+          }
+        });
+        // Also hide any progress bar elements
+        document.querySelectorAll('[role="progressbar"], .flutter-loader').forEach(function(el) {
+          el.style.display = 'none';
+        });
+      }
+
+      // Run immediately and observe for new elements
+      killFlutterLoader();
+      var observer = new MutationObserver(function(mutations) {
+        killFlutterLoader();
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+
+      // Stop observing once Flutter is ready
+      window.addEventListener('flutter-first-frame', function() {
+        observer.disconnect();
+      });
+    })();
 
     // Remove when Flutter is ready
     window.addEventListener('flutter-first-frame', removeSplash);

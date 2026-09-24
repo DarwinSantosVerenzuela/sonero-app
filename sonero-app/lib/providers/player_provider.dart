@@ -70,6 +70,7 @@ class PlayerProvider extends ChangeNotifier {
     } else {
       setVolume(_previousVolume > 0 ? _previousVolume : 100.0);
     }
+    notifyListeners();
   }
 
   // ── Sidebar visibility (shared across AppShell & MiniPlayer) ─────────────
@@ -254,7 +255,11 @@ class PlayerProvider extends ChangeNotifier {
 
   void seek(Duration pos) => player.seek(pos);
 
-  void setVolume(double vol) => player.setVolume(vol);
+  void setVolume(double vol) {
+    _volume = vol;
+    player.setVolume(vol);
+    notifyListeners();
+  }
 
   void next() => player.next();
 

@@ -38,9 +38,13 @@ async def upload_cookies(file: UploadFile = File(...)) -> dict:
     cookie_path = settings.TMP_DIR / "cookies.txt"
     
     try:
-        content = await file.read()
+        content = await file.read(1_048_576 + 1)  # Read up to 1MB + 1 byte
+        if len(content) > 1_048_576:
+            raise HTTPException(status_code=413, detail="Archivo muy grande (máximo 1MB).")
         with open(cookie_path, "wb") as f:
             f.write(content)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al guardar el archivo: {str(e)}")
         

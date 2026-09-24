@@ -16,6 +16,7 @@ import 'providers/downloads_provider.dart';
 import 'ui/app_shell.dart';
 import 'ui/theme.dart';
 import 'ui/video_download_dialog.dart';
+import 'ui/settings/folder_setup_dialog.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:sonero_app/l10n/app_localizations.dart';
 
@@ -36,6 +37,7 @@ class _ShazamAppState extends State<ShazamApp> with TrayListener, WindowListener
   final _hotkeys   = HotkeyService();
   final _navigatorKey = GlobalKey<NavigatorState>();
   bool _initialized = false;
+  bool _needsSetup = false;
 
   @override
   void initState() {
@@ -91,7 +93,22 @@ class _ShazamAppState extends State<ShazamApp> with TrayListener, WindowListener
     }
 
     // ALWAYS mark as initialized, even if something above failed
-    setState(() => _initialized = true);
+    setState(() {
+      _initialized = true;
+      _needsSetup = _settings.isFirstLaunch;
+    });
+
+    // Show folder setup dialog on first launch
+    if (_needsSetup) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final ctx = _navigatorKey.currentContext;
+        if (ctx != null) {
+          FolderSetupDialog.show(ctx).then((_) {
+            setState(() => _needsSetup = false);
+          });
+        }
+      });
+    }
   }
 
   void _listenMic() {
@@ -234,8 +251,16 @@ class _ShazamAppState extends State<ShazamApp> with TrayListener, WindowListener
             // ── Global mobile density ───────────────────────────────────────
             // Aplica a TODAS las rutas (push, dialog, etc.), no solo AppShell
             builder: (context, child) {
+              // ── Global fix: kill yellow underlines on Flutter Web ──
+              child = DefaultTextStyle(
+                style: DefaultTextStyle.of(context).style.copyWith(
+                  decoration: TextDecoration.none,
+                ),
+                child: child!,
+              );
+
               final isMobile = MediaQuery.of(context).size.width < 600;
-              if (!isMobile) return child!;
+              if (!isMobile) return child;
 
               return MediaQuery(
                 data: MediaQuery.of(context).copyWith(
@@ -285,7 +310,7 @@ class _ShazamAppState extends State<ShazamApp> with TrayListener, WindowListener
                       toolbarHeight: 48,
                     ),
                   ),
-                  child: child!,
+                  child: child,
                 ),
               );
             },

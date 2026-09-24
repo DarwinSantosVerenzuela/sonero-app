@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:media_kit/media_kit.dart';
+import '../services/web_audio_eq.dart';
 
 /// 10-band frequency labels (Hz).
 const List<String> kEqBandLabels = [
@@ -21,6 +22,9 @@ enum EqPreset {
   bassBoost,
   vocal,
   acoustic,
+  rap,
+  hiphop,
+  drill,
   custom,
 }
 
@@ -35,6 +39,9 @@ extension EqPresetLabel on EqPreset {
     EqPreset.bassBoost   => 'Bass Boost',
     EqPreset.vocal       => 'Vocal',
     EqPreset.acoustic    => 'Acústico',
+    EqPreset.rap         => 'Rap',
+    EqPreset.hiphop      => 'Hip Hop',
+    EqPreset.drill       => 'Drill',
     EqPreset.custom      => 'Personalizado',
   };
 }
@@ -52,6 +59,12 @@ const Map<EqPreset, List<double>> kPresetValues = {
   EqPreset.bassBoost:  [12, 10,  8,  5,  2,  0,  0,  0,  0,  0],
   EqPreset.vocal:      [-4, -3,  0,  4,  8,  8,  6,  2,  0, -2],
   EqPreset.acoustic:   [ 7,  5,  3,  1, -2,  1,  3,  5,  7,  6],
+  // Rap: heavy bass, punchy mids, clear highs for vocals
+  EqPreset.rap:        [10,  8,  5,  3,  1,  3,  5,  4,  6,  7],
+  // Hip Hop: deep sub-bass, warm mids, crisp highs
+  EqPreset.hiphop:     [11,  9,  7,  4,  0,  2,  3,  5,  7,  8],
+  // Drill: aggressive sub-bass, dark tone, sharp hi-hats
+  EqPreset.drill:      [12, 11,  8,  3, -2, -1,  2,  6, 10, 11],
 };
 
 class EqualizerProvider extends ChangeNotifier {
@@ -197,6 +210,13 @@ class EqualizerProvider extends ChangeNotifier {
   // ── MPV filter builder ─────────────────────────────────────────────────────
 
   void _applyFilters() {
+    // ── Web: use Web Audio API ──────────────────────────────────────────
+    if (kIsWeb) {
+      _applyWebFilters();
+      return;
+    }
+
+    // ── Native: use MPV filters ────────────────────────────────────────
     if (_player == null) return;
 
     if (!_enabled) {
@@ -209,8 +229,6 @@ class EqualizerProvider extends ChangeNotifier {
     // 1. Superequalizer (18-band, we use the first 10)
     final hasEq = _bands.any((g) => g != 0.0);
     if (hasEq) {
-      // MPV superequalizer maps: bands 1-18 at ~55Hz intervals.
-      // We map our 10 bands roughly: 1→32,2→64,3→125,5→250,7→500,9→1k,11→2k,13→4k,15→8k,17→16k
       final sb = StringBuffer('superequalizer=');
       const mapping = [1, 2, 3, 5, 7, 9, 11, 13, 15, 17];
       for (int i = 0; i < 10; i++) {
@@ -220,10 +238,8 @@ class EqualizerProvider extends ChangeNotifier {
       filters.add(sb.toString());
     }
 
-    // 2. Bass boost — wider frequency range and steeper slope for PUNCH
+    // 2. Bass boost
     if (_bassBoostEnabled && _bassBoostGain > 0) {
-      // Two-stage bass: sub-bass (60Hz) + mid-bass (120Hz) for full impact
-      final subGain = (_bassBoostGain * 0.8).toStringAsFixed(1);
       final midGain = (_bassBoostGain * 0.5).toStringAsFixed(1);
       filters.add('bass=g=${_bassBoostGain.toStringAsFixed(1)}:f=80:w=0.7');
       filters.add('bass=g=$midGain:f=150:w=0.5');
@@ -238,22 +254,19 @@ class EqualizerProvider extends ChangeNotifier {
         filters.add('extrastereo=m=${_extraStereoMultiplier.toStringAsFixed(1)}');
         break;
       case ChannelMode.stereo:
-        break; // default, no filter needed
+        break;
     }
 
-    // 4. Balance (pan)
+    // 4. Balance
     if (_balance != 0.0) {
       final left  = (1.0 - _balance.clamp(0.0, 1.0));
       final right = (1.0 + _balance.clamp(-1.0, 0.0));
       filters.add('pan=2c|c0=${left.toStringAsFixed(2)}*c0|c1=${right.toStringAsFixed(2)}*c1');
     }
 
-    // 5. Loudness enhancement — aggressive normalization + dynamic compression
+    // 5. Loudness
     if (_loudnessEnabled) {
-      // EBU R128 normalization with louder target (-10 LUFS) + headroom
       filters.add('loudnorm=I=-10:TP=-1:LRA=7');
-      // Dynamic range compression: makes quiet parts louder, loud parts controlled
-      // This is what makes cheap earbuds sound "full" and powerful
       filters.add('acompressor=threshold=0.05:ratio=4:attack=5:release=100:makeup=6');
     }
 
@@ -262,16 +275,46 @@ class EqualizerProvider extends ChangeNotifier {
     _setProperty('af', chain);
   }
 
+  /// Apply filters via Web Audio API for browser builds.
+  void _applyWebFilters() {
+    // Initialize Web Audio chain if not done yet
+    WebAudioEqualizer.init();
+
+    if (!_enabled) {
+      WebAudioEqualizer.reset();
+      return;
+    }
+
+    // 1. EQ bands
+    WebAudioEqualizer.setBands(_bands);
+
+    // 2. Bass boost
+    if (_bassBoostEnabled && _bassBoostGain > 0) {
+      WebAudioEqualizer.setBassBoost(_bassBoostGain);
+    } else {
+      WebAudioEqualizer.setBassBoost(0);
+    }
+
+    // 3. Balance
+    if (_balance != 0.0) {
+      WebAudioEqualizer.setBalance(_balance);
+    }
+
+    // 4. Loudness (boost gain)
+    if (_loudnessEnabled) {
+      WebAudioEqualizer.setGain(2.0); // +6dB boost
+    } else {
+      WebAudioEqualizer.setGain(1.0);
+    }
+
+    debugPrint('[EQ-Web] Filters applied: bands=${_bands}, bass=${_bassBoostEnabled ? _bassBoostGain : 0}, balance=$_balance, loud=$_loudnessEnabled');
+  }
+
   void _setProperty(String name, String value) {
     if (_player == null) return;
     try {
-      // media_kit Player exposes the underlying native player via .platform
-      // On native (Windows/Android), this is NativePlayer which has setProperty
-      if (!kIsWeb) {
-        final platform = _player!.platform;
-        // Use reflection-safe approach: call setProperty if available
-        (platform as dynamic).setProperty(name, value);
-      }
+      final platform = _player!.platform;
+      (platform as dynamic).setProperty(name, value);
     } catch (e) {
       debugPrint('[EQ] Error setting property $name: $e');
     }

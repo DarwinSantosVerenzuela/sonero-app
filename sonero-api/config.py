@@ -35,8 +35,8 @@ class Settings(BaseSettings):
     # Use 16 for 'Stereo Mix' (captures PC speaker output directly).
     AUDIO_DEVICE: int | None = None
 
-    # Server
-    HOST: str = "0.0.0.0"
+    # Server (default: local only; set HOST=0.0.0.0 in .env for network access)
+    HOST: str = "127.0.0.1"
     PORT: int = 8000
 
     # Download format preference (no FFmpeg needed)

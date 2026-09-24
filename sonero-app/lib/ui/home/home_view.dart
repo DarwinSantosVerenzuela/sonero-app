@@ -10,6 +10,7 @@ import '../../models/playlist.dart';
 import '../theme.dart';
 import '../widgets/hover_scale.dart';
 import '../widgets/track_cover_image.dart';
+import 'package:file_picker/file_picker.dart';
 
 class HomeView extends StatelessWidget {
   final Function(int)? onNavigate;
@@ -316,39 +317,95 @@ class HomeView extends StatelessWidget {
               }
 
               final pl = playlists[index];
-              return HoverScale(
-                key: ValueKey('playlist_card_${pl.name}'),
-                onTap: () async {
-                  final settings = context.read<SettingsProvider>();
-                  final library = context.read<LibraryProvider>();
-                  await library.selectPlaylist(settings.api, pl);
-                  if (onNavigate != null) {
-                    onNavigate!(1);
-                  }
+              final hasCover = pl.coverUrl != null && pl.coverUrl!.isNotEmpty;
+              final settings = context.read<SettingsProvider>();
+              final apiUrl = settings.apiUrl;
+
+              Widget coverWidget;
+              if (hasCover) {
+                final imageUrl = pl.coverUrl!.startsWith('file://')
+                    ? pl.coverUrl!
+                    : '$apiUrl${pl.coverUrl}';
+                coverWidget = ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: Image.network(
+                    imageUrl,
+                    fit: BoxFit.cover,
+                    width: 150,
+                    height: isMobile ? 120 : 150,
+                    errorBuilder: (_, __, ___) => _PlaylistFallbackIcon(
+                      name: pl.name,
+                      accent: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                );
+              } else {
+                coverWidget = _PlaylistFallbackIcon(
+                  name: pl.name,
+                  accent: Theme.of(context).colorScheme.primary,
+                );
+              }
+
+              return GestureDetector(
+                onSecondaryTapUp: (details) {
+                  _showPlaylistCoverMenu(context, details.globalPosition, pl);
                 },
-                child: Container(
+                child: HoverScale(
+                  key: ValueKey('playlist_card_${pl.name}'),
+                  onTap: () async {
+                    final library = context.read<LibraryProvider>();
+                    await library.selectPlaylist(settings.api, pl);
+                    if (onNavigate != null) {
+                      onNavigate!(1);
+                    }
+                  },
+                  child: Container(
                     width: 150,
                     margin: const EdgeInsets.symmetric(horizontal: 10),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary.withOpacity(0.06),
+                      color: hasCover ? Colors.transparent : Theme.of(context).colorScheme.primary.withOpacity(0.06),
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.1), width: 1),
+                      border: hasCover ? null : Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.1), width: 1),
                     ),
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.queue_music, size: 40, color: Theme.of(context).colorScheme.primary),
-                          const SizedBox(height: 8),
-                          Text(
-                            pl.name,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: context.colors.textPrimary, fontWeight: FontWeight.bold),
+                    clipBehavior: Clip.antiAlias,
+                    child: Stack(
+                      children: [
+                        coverWidget,
+                        if (hasCover)
+                          Positioned(
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            child: Container(
+                              padding: const EdgeInsets.fromLTRB(10, 20, 10, 10),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Colors.transparent,
+                                    Colors.black.withOpacity(0.75),
+                                  ],
+                                ),
+                              ),
+                              child: Text(
+                                pl.name,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                  shadows: [Shadow(blurRadius: 4, color: Colors.black)],
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
                           ),
-                        ],
-                      ),
+                      ],
                     ),
                   ),
+                ),
               );
             },
           ),
@@ -497,6 +554,52 @@ class HomeView extends StatelessWidget {
       ),
     );
   }
+
+  void _showPlaylistCoverMenu(BuildContext context, Offset position, Playlist pl) {
+    final accent = Theme.of(context).colorScheme.primary;
+    showMenu(
+      context: context,
+      position: RelativeRect.fromLTRB(position.dx, position.dy, position.dx, position.dy),
+      color: context.colors.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      items: [
+        PopupMenuItem(
+          child: Row(
+            children: [
+              Icon(Icons.image_rounded, size: 18, color: accent),
+              const SizedBox(width: 10),
+              Text(pl.coverUrl != null ? 'Cambiar imagen' : 'Agregar imagen'),
+            ],
+          ),
+          onTap: () async {
+            final result = await FilePicker.pickFiles(
+              type: FileType.image,
+              allowMultiple: false,
+              withData: true,
+            );
+            if (result != null && result.files.isNotEmpty && result.files.first.bytes != null) {
+              final file = result.files.first;
+              final settings = context.read<SettingsProvider>();
+              await settings.api.uploadPlaylistCover(
+                pl.name,
+                file.bytes!.toList(),
+                file.name,
+              );
+              if (context.mounted) {
+                await context.read<LibraryProvider>().loadPlaylists(settings.api);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Imagen de "${pl.name}" actualizada'),
+                    backgroundColor: accent,
+                  ),
+                );
+              }
+            }
+          },
+        ),
+      ],
+    );
+  }
 }
 
 class _AddOptionTile extends StatelessWidget {
@@ -557,6 +660,31 @@ class _AddOptionTile extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _PlaylistFallbackIcon extends StatelessWidget {
+  final String name;
+  final Color accent;
+
+  const _PlaylistFallbackIcon({required this.name, required this.accent});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.queue_music, size: 40, color: accent),
+          const SizedBox(height: 8),
+          Text(
+            name,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: context.colors.textPrimary, fontWeight: FontWeight.bold),
+          ),
+        ],
       ),
     );
   }
