@@ -34,6 +34,7 @@ class SettingsProvider extends ChangeNotifier {
   static const _keyRapidApiHost = 'rapidapi_host';
   static const _keyShazamProxyUrl = 'shazam_proxy_url';
   static const _keyCustomLogoPath = 'custom_logo_path';
+  static const _keySetupComplete = 'setup_complete';
 
   String _apiUrl = 'http://127.0.0.1:8000';
   String _musicFolder = '';
@@ -41,6 +42,7 @@ class SettingsProvider extends ChangeNotifier {
   int? _deviceIndex;
   int _listenDuration = 15;
   bool _isLoaded = false;
+  bool _setupComplete = false;
 
   ThemeMode _themeMode = ThemeMode.dark;
   Color _accentColor = const Color(0xFF7B2FFF);
@@ -83,6 +85,7 @@ class SettingsProvider extends ChangeNotifier {
   bool get isLoaded => _isLoaded;
   bool get hasMusicFolder => _musicFolder.isNotEmpty;
   bool get hasVideoFolder => _videoFolder.isNotEmpty;
+  bool get isFirstLaunch => !_setupComplete;
 
   ThemeMode get themeMode => _themeMode;
   Color get accentColor => _accentColor;
@@ -162,6 +165,7 @@ class SettingsProvider extends ChangeNotifier {
     _currentUserName = prefs.getString(_keyUserName);
     _currentUserEmail = prefs.getString(_keyUserEmail);
     _isLoggedIn = prefs.getBool(_keyIsLoggedIn) ?? false;
+    _setupComplete = prefs.getBool(_keySetupComplete) ?? false;
     _googleAccessToken = prefs.getString('google_access_token');
     final lastSyncMs = prefs.getInt('last_sync_time');
     if (lastSyncMs != null) {
@@ -264,6 +268,13 @@ class SettingsProvider extends ChangeNotifier {
     );
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyApiUrl, url);
+    notifyListeners();
+  }
+
+  Future<void> completeSetup() async {
+    _setupComplete = true;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keySetupComplete, true);
     notifyListeners();
   }
 

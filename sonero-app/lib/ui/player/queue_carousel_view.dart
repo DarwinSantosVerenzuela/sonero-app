@@ -20,6 +20,7 @@ class QueueCarouselView extends StatefulWidget {
 class _QueueCarouselViewState extends State<QueueCarouselView> {
   final Set<int> _flippedCards = {};
   CoverflowCarouselController? _controller;
+  int _viewingIndex = 0;
 
   @override
   void dispose() {
@@ -40,6 +41,11 @@ class _QueueCarouselViewState extends State<QueueCarouselView> {
     final currentIndex = current != null
         ? queue.indexWhere((t) => t.filename == current.filename)
         : 0;
+
+    // Track the browsing index for the counter display
+    if (_viewingIndex < 0 || _viewingIndex >= queue.length) {
+      _viewingIndex = currentIndex >= 0 ? currentIndex : 0;
+    }
 
     // Card size
     final cardWidth = isMobile ? screenWidth * 0.65 : (screenWidth * 0.28).clamp(200.0, 420.0);
@@ -99,7 +105,7 @@ class _QueueCarouselViewState extends State<QueueCarouselView> {
                     ),
                     const Spacer(),
                     Text(
-                      '${(currentIndex >= 0 ? currentIndex + 1 : 1)} / ${queue.length}',
+                      '${(_viewingIndex >= 0 ? _viewingIndex + 1 : 1)} / ${queue.length}',
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.5),
                         fontSize: 13,
@@ -130,14 +136,8 @@ class _QueueCarouselViewState extends State<QueueCarouselView> {
                 enableShadow: true,
                 cardBorderRadius: BorderRadius.circular(16),
                 onPageChanged: (index) {
-                  // Play the track when we navigate to it
-                  if (index >= 0 && index < queue.length) {
-                    final track = queue[index];
-                    if (track.filename != player.currentTrack?.filename) {
-                      final settings = context.read<SettingsProvider>();
-                      player.playTrack(track, queue, settings);
-                    }
-                  }
+                  // Only update the viewing index for the counter
+                  setState(() => _viewingIndex = index);
                 },
                 itemBuilder: (context, index) {
                   final track = queue[index];
@@ -153,6 +153,11 @@ class _QueueCarouselViewState extends State<QueueCarouselView> {
                           _flippedCards.add(index);
                         }
                       });
+                    },
+                    onDoubleTap: () {
+                      // Double tap plays the track
+                      final settings = context.read<SettingsProvider>();
+                      player.playTrack(track, queue, settings);
                     },
                     child: _flippedCards.contains(index)
                         ? _buildBackFace(context, player, track, isCurrentTrack, cardWidth)

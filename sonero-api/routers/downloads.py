@@ -534,7 +534,10 @@ async def clean_duplicates(body: CleanDuplicatesRequest, db: Session = Depends(g
     summary="Get a specific video file",
 )
 async def get_video_file(filename: str) -> FileResponse:
-    file_path = settings.VIDEO_DIR / filename
+    file_path = (settings.VIDEO_DIR / filename).resolve()
+    # Security: prevent path traversal
+    if not file_path.is_relative_to(settings.VIDEO_DIR.resolve()):
+        raise HTTPException(status_code=403, detail="Acceso denegado.")
     if not file_path.exists():
         raise HTTPException(status_code=404, detail=f"Archivo de video '{filename}' no encontrado.")
     
@@ -554,7 +557,10 @@ async def get_video_file(filename: str) -> FileResponse:
     summary="Delete a downloaded video",
 )
 async def delete_video_file(filename: str) -> dict:
-    file_path = settings.VIDEO_DIR / filename
+    file_path = (settings.VIDEO_DIR / filename).resolve()
+    # Security: prevent path traversal
+    if not file_path.is_relative_to(settings.VIDEO_DIR.resolve()):
+        raise HTTPException(status_code=403, detail="Acceso denegado.")
     if not file_path.exists():
         raise HTTPException(status_code=404, detail=f"Archivo de video '{filename}' no encontrado.")
     file_path.unlink()
@@ -566,7 +572,10 @@ async def delete_video_file(filename: str) -> dict:
     summary="Download a specific MP3 file",
 )
 async def get_file(filename: str) -> FileResponse:
-    file_path = settings.MUSIC_DIR / filename
+    file_path = (settings.MUSIC_DIR / filename).resolve()
+    # Security: prevent path traversal
+    if not file_path.is_relative_to(settings.MUSIC_DIR.resolve()):
+        raise HTTPException(status_code=403, detail="Acceso denegado.")
     if not file_path.exists():
         raise HTTPException(status_code=404, detail=f"Archivo '{filename}' no encontrado.")
     return FileResponse(
@@ -581,7 +590,10 @@ async def get_file(filename: str) -> FileResponse:
     summary="Delete a downloaded MP3",
 )
 async def delete_file(filename: str) -> dict:
-    file_path = settings.MUSIC_DIR / filename
+    file_path = (settings.MUSIC_DIR / filename).resolve()
+    # Security: prevent path traversal
+    if not file_path.is_relative_to(settings.MUSIC_DIR.resolve()):
+        raise HTTPException(status_code=403, detail="Acceso denegado.")
     if not file_path.exists():
         raise HTTPException(status_code=404, detail=f"Archivo '{filename}' no encontrado.")
     file_path.unlink()

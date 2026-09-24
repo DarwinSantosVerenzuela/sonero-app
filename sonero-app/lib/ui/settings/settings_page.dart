@@ -63,6 +63,60 @@ class _SettingsPageState extends State<SettingsPage> {
     _shazamProxyUrlCtrl.dispose();
     super.dispose();
   }
+  Future<String?> _showWebFolderInput(BuildContext context, String title, String currentPath) async {
+    final controller = TextEditingController(text: currentPath);
+    final accent = Theme.of(context).colorScheme.primary;
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: context.colors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.folder_rounded, color: accent, size: 20),
+            const SizedBox(width: 10),
+            Text(title, style: TextStyle(color: context.colors.textPrimary, fontSize: 16)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Escribe la ruta completa de la carpeta:', style: TextStyle(color: context.colors.textSecondary, fontSize: 13)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              style: TextStyle(color: context.colors.textPrimary, fontSize: 14),
+              decoration: InputDecoration(
+                hintText: r'Ej: C:\Users\tu_usuario\Music\Sonero',
+                hintStyle: TextStyle(color: context.colors.textSecondary.withOpacity(0.4), fontSize: 13),
+                filled: true,
+                fillColor: context.colors.bg,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.colors.border.withOpacity(0.2))),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.colors.border.withOpacity(0.2))),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: accent, width: 1.5)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                prefixIcon: Icon(Icons.folder_rounded, color: accent.withOpacity(0.5), size: 20),
+              ),
+              onSubmitted: (val) => Navigator.of(ctx).pop(val),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text('Cancelar', style: TextStyle(color: context.colors.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text),
+            style: ElevatedButton.styleFrom(backgroundColor: accent, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)), elevation: 0),
+            child: const Text('Confirmar'),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildWebSettingsSection(BuildContext context, SettingsProvider settings) {
     return SizedBox(
@@ -252,9 +306,10 @@ class _SettingsPageState extends State<SettingsPage> {
                             label: const Text('Seleccionar carpeta'),
                             onPressed: () async {
                               if (kIsWeb) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Selección de carpeta no disponible en la versión web.')),
-                                );
+                                final path = await _showWebFolderInput(context, 'Carpeta de Música', settings.musicFolder);
+                                if (path != null && path.isNotEmpty) {
+                                  await settings.setMusicFolder(path);
+                                }
                                 return;
                               }
                               final result = await FilePicker.getDirectoryPath(
@@ -330,9 +385,10 @@ class _SettingsPageState extends State<SettingsPage> {
                             label: const Text('Seleccionar carpeta'),
                             onPressed: () async {
                               if (kIsWeb) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Selección de carpeta no disponible en la versión web.')),
-                                );
+                                final path = await _showWebFolderInput(context, 'Carpeta de Videos', settings.videoFolder);
+                                if (path != null && path.isNotEmpty) {
+                                  await settings.setVideoFolder(path);
+                                }
                                 return;
                               }
                               final result = await FilePicker.getDirectoryPath(

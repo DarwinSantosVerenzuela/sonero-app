@@ -1,4 +1,6 @@
 import 'dart:ui';
+import 'package:file_picker/file_picker.dart';
+import 'package:http/http.dart' as http;
 import 'package:sonero_app/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -520,32 +522,60 @@ class _PlaylistTileState extends State<_PlaylistTile> {
       final nameLC = widget.playlist.name.toLowerCase();
       final bool isVideoPlaylist = nameLC.contains('video');
       final initial = widget.playlist.name.isNotEmpty ? widget.playlist.name[0].toUpperCase() : '?';
-      leadingIcon = Container(
-        width: 32,
-        height: 32,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          gradient: isSelected
-              ? LinearGradient(colors: [accent.withOpacity(0.3), accent.withOpacity(0.1)])
-              : null,
-          color: isSelected ? null : context.colors.border.withOpacity(0.3),
+      final hasCover = widget.playlist.coverUrl != null && widget.playlist.coverUrl!.isNotEmpty;
+
+      if (hasCover) {
+        final settings = context.read<SettingsProvider>();
+        final imageUrl = widget.playlist.coverUrl!.startsWith('file://')
+            ? widget.playlist.coverUrl!
+            : '${settings.apiUrl}${widget.playlist.coverUrl}';
+        leadingIcon = ClipRRect(
           borderRadius: BorderRadius.circular(8),
-        ),
-        child: isVideoPlaylist
-            ? Icon(
-                Icons.play_circle_rounded,
-                size: 18,
-                color: isSelected ? accent : context.colors.textSecondary,
-              )
-            : Text(
-                initial,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: isSelected ? accent : context.colors.textSecondary,
-                ),
+          child: Image.network(
+            imageUrl,
+            width: 32,
+            height: 32,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Container(
+              width: 32,
+              height: 32,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: context.colors.border.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(8),
               ),
-      );
+              child: Text(initial, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: context.colors.textSecondary)),
+            ),
+          ),
+        );
+      } else {
+        leadingIcon = Container(
+          width: 32,
+          height: 32,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            gradient: isSelected
+                ? LinearGradient(colors: [accent.withOpacity(0.3), accent.withOpacity(0.1)])
+                : null,
+            color: isSelected ? null : context.colors.border.withOpacity(0.3),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: isVideoPlaylist
+              ? Icon(
+                  Icons.play_circle_rounded,
+                  size: 18,
+                  color: isSelected ? accent : context.colors.textSecondary,
+                )
+              : Text(
+                  initial,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: isSelected ? accent : context.colors.textSecondary,
+                  ),
+                ),
+        );
+      }
     }
 
     return Tooltip(
@@ -640,17 +670,103 @@ class _PlaylistTileState extends State<_PlaylistTile> {
       context: context,
       position: RelativeRect.fromLTRB(position.dx, position.dy, position.dx, position.dy),
       color: context.colors.surfaceAlt,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       items: [
+        PopupMenuItem(
+          value: 'cover',
+          child: Row(
+            children: [
+              Icon(Icons.image_rounded, size: 18, color: context.colors.textSecondary),
+              const SizedBox(width: 10),
+              const Text('Cambiar portada'),
+            ],
+          ),
+        ),
         if (widget.onRename != null)
-          PopupMenuItem(value: 'rename', child: Text(AppLocalizations.of(context)!.rename)),
+          PopupMenuItem(
+            value: 'rename',
+            child: Row(
+              children: [
+                Icon(Icons.edit_rounded, size: 18, color: context.colors.textSecondary),
+                const SizedBox(width: 10),
+                Text(AppLocalizations.of(context)!.rename),
+              ],
+            ),
+          ),
         if (widget.onDelete != null)
-          PopupMenuItem(value: 'delete',
-            child: Text(AppLocalizations.of(context)!.delete, style: TextStyle(color: context.colors.error)),
+          PopupMenuItem(
+            value: 'delete',
+            child: Row(
+              children: [
+                Icon(Icons.delete_outline_rounded, size: 18, color: context.colors.error),
+                const SizedBox(width: 10),
+                Text(AppLocalizations.of(context)!.delete, style: TextStyle(color: context.colors.error)),
+              ],
+            ),
           ),
       ],
     );
+    if (!mounted) return;
     if (action == 'rename') widget.onRename?.call();
     if (action == 'delete') widget.onDelete?.call();
+    if (action == 'cover') _pickAndUploadCover(context);
+  }
+
+  Future<void> _pickAndUploadCover(BuildContext context) async {
+    try {
+      final result = await FilePicker.pickFiles(
+        type: FileType.image,
+        allowMultiple: false,
+        withData: true,
+      );
+      if (result == null || result.files.isEmpty) return;
+
+      final file = result.files.first;
+      if (file.bytes == null) return;
+
+      final settings = context.read<SettingsProvider>();
+      final playlistName = widget.playlist.name;
+      final uri = Uri.parse('${settings.apiUrl}/api/v1/playlists/$playlistName/cover');
+
+      final request = http.MultipartRequest('POST', uri);
+      request.files.add(http.MultipartFile.fromBytes(
+        'file',
+        file.bytes!,
+        filename: file.name,
+      ));
+
+      final response = await request.send();
+      if (response.statusCode == 200 && mounted) {
+        // Refresh playlists to show new cover
+        context.read<LibraryProvider>().loadPlaylists(settings.api);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('✅ Portada actualizada'),
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al subir portada (${response.statusCode})'),
+            backgroundColor: context.colors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: context.colors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 }
 

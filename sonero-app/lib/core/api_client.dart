@@ -113,10 +113,15 @@ class ApiClient {
             }
           } catch (_) {}
           
+          // Check for cover image
+          final coverFile = File(p.join(entity.path, 'cover.jpg'));
+          final hasCover = await coverFile.exists();
+
           playlistsList.add({
             'name': name,
             'path': entity.path,
             'track_count': count,
+            'cover_url': hasCover ? 'file://${coverFile.path}' : null,
           });
         }
       }
@@ -143,6 +148,22 @@ class ApiClient {
       body: jsonEncode({'name': name}),
     );
     _check(res);
+  }
+
+  Future<String?> uploadPlaylistCover(String playlistName, List<int> imageBytes, String fileName) async {
+    if (isNative) {
+      // Native: save directly to playlist folder
+      final coverPath = p.join(musicFolder ?? '', playlistName, 'cover.jpg');
+      await File(coverPath).writeAsBytes(imageBytes);
+      return 'file://$coverPath';
+    }
+    final uri = Uri.parse('$baseUrl/api/v1/playlists/$playlistName/cover');
+    final request = http.MultipartRequest('POST', uri)
+      ..files.add(http.MultipartFile.fromBytes('file', imageBytes, filename: fileName));
+    final response = await request.send();
+    if (response.statusCode != 200) return null;
+    final body = jsonDecode(await response.stream.bytesToString());
+    return body['cover_url'] as String?;
   }
 
   Future<void> renamePlaylist(String oldName, String newName) async {

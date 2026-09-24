@@ -10,6 +10,7 @@ import '../../core/csv_service.dart';
 import '../../services/lyrics_service.dart';
 import '../theme.dart';
 import '../widgets/track_cover_image.dart';
+import '../settings/settings_page.dart';
 import 'metadata_dialog.dart';
 
 class LibraryPage extends StatefulWidget {
@@ -455,6 +456,44 @@ class _LibraryPageState extends State<LibraryPage>
                 fontSize: 15,
               ),
             ),
+            const SizedBox(width: 8),
+            // Select All / Deselect All toggle
+            TextButton.icon(
+              onPressed: () {
+                setState(() {
+                  if (_selectedTrackFilenames.length == currentTracks.length) {
+                    _selectedTrackFilenames.clear();
+                  } else {
+                    _selectedTrackFilenames.clear();
+                    _selectedTrackFilenames.addAll(currentTracks.map((t) => t.filename));
+                  }
+                });
+              },
+              icon: Icon(
+                _selectedTrackFilenames.length == currentTracks.length
+                    ? Icons.deselect_rounded
+                    : Icons.select_all_rounded,
+                size: 18,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              label: Text(
+                _selectedTrackFilenames.length == currentTracks.length
+                    ? 'Ninguno'
+                    : 'Todo (${currentTracks.length})',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Align(
@@ -785,6 +824,26 @@ class _PageHeader extends StatelessWidget {
     );
 
     // Desktop: full toolbar.  Mobile: three-dot menu.
+
+    PopupMenuItem<String> _sortMenuItem(String value, String label, bool isActive, BuildContext ctx) {
+      return PopupMenuItem<String>(
+        value: value,
+        child: Row(
+          children: [
+            if (isActive)
+              Icon(Icons.check_rounded, size: 16, color: Theme.of(ctx).colorScheme.primary)
+            else
+              const SizedBox(width: 16),
+            const SizedBox(width: 8),
+            Text(label, style: TextStyle(
+              color: isActive ? Theme.of(ctx).colorScheme.primary : ctx.colors.textPrimary,
+              fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+            )),
+          ],
+        ),
+      );
+    }
+
     final Widget actionsWidget;
 
     if (isMobile) {
@@ -819,6 +878,11 @@ class _PageHeader extends StatelessWidget {
             case 'sort_artistDesc':
               context.read<LibraryProvider>().setSortOption(SortOption.artistDesc);
               break;
+            case 'settings':
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SettingsPage()),
+              );
+              break;
           }
         },
         itemBuilder: (ctx) => [
@@ -836,20 +900,36 @@ class _PageHeader extends StatelessWidget {
               ],
             ),
           ),
-          const PopupMenuDivider(),
           PopupMenuItem(
-            enabled: false,
-            height: 32,
-            child: Text('Ordenar por', style: TextStyle(
-              fontSize: 12, fontWeight: FontWeight.w600,
-              color: context.colors.textSecondary,
-            )),
+            value: 'sort_submenu',
+            child: PopupMenuButton<String>(
+              offset: const Offset(180, 0),
+              color: ctx.colors.surfaceAlt,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              onSelected: (val) {
+                Navigator.of(ctx).pop(val);
+              },
+              itemBuilder: (_) {
+                final currentSort = ctx.read<LibraryProvider>().sortOption;
+                return [
+                  _sortMenuItem('sort_dateAdded', 'Más recientes', currentSort == SortOption.dateAdded, ctx),
+                  _sortMenuItem('sort_titleAsc', 'Título (A-Z)', currentSort == SortOption.titleAsc, ctx),
+                  _sortMenuItem('sort_titleDesc', 'Título (Z-A)', currentSort == SortOption.titleDesc, ctx),
+                  _sortMenuItem('sort_artistAsc', 'Artista (A-Z)', currentSort == SortOption.artistAsc, ctx),
+                  _sortMenuItem('sort_artistDesc', 'Artista (Z-A)', currentSort == SortOption.artistDesc, ctx),
+                ];
+              },
+              child: Row(
+                children: [
+                  Icon(Icons.sort_rounded, size: 18, color: ctx.colors.textSecondary),
+                  const SizedBox(width: 10),
+                  Text('Ordenar por', style: TextStyle(color: ctx.colors.textPrimary)),
+                  const Spacer(),
+                  Icon(Icons.chevron_right_rounded, size: 18, color: ctx.colors.textSecondary),
+                ],
+              ),
+            ),
           ),
-          const PopupMenuItem(value: 'sort_dateAdded', child: Text('  Más recientes')),
-          const PopupMenuItem(value: 'sort_titleAsc', child: Text('  Título (A-Z)')),
-          const PopupMenuItem(value: 'sort_titleDesc', child: Text('  Título (Z-A)')),
-          const PopupMenuItem(value: 'sort_artistAsc', child: Text('  Artista (A-Z)')),
-          const PopupMenuItem(value: 'sort_artistDesc', child: Text('  Artista (Z-A)')),
           const PopupMenuDivider(),
           PopupMenuItem(
             value: 'toggle_view',
@@ -868,6 +948,17 @@ class _PageHeader extends StatelessWidget {
                 Icon(Icons.refresh_rounded, size: 18, color: context.colors.textSecondary),
                 const SizedBox(width: 10),
                 const Text('Actualizar'),
+              ],
+            ),
+          ),
+          const PopupMenuDivider(),
+          PopupMenuItem(
+            value: 'settings',
+            child: Row(
+              children: [
+                Icon(Icons.settings_rounded, size: 18, color: context.colors.textSecondary),
+                const SizedBox(width: 10),
+                const Text('Ajustes'),
               ],
             ),
           ),
@@ -961,6 +1052,23 @@ class _PageHeader extends StatelessWidget {
                   tooltip: 'Actualizar',
                   onPressed: () {
                     context.read<LibraryProvider>().loadTracks(settings.api);
+                  },
+                  style: IconButton.styleFrom(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    backgroundColor: Colors.transparent,
+                    side: BorderSide.none,
+                  ),
+                ),
+                Container(width: 1, height: 20, color: context.colors.border.withOpacity(0.3)),
+                // Settings button
+                IconButton(
+                  icon: const Icon(Icons.settings_rounded, size: 19),
+                  color: context.colors.textSecondary,
+                  tooltip: 'Ajustes',
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const SettingsPage()),
+                    );
                   },
                   style: IconButton.styleFrom(
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:sonero_app/l10n/app_localizations.dart';
@@ -15,6 +16,8 @@ import 'home/home_view.dart';
 import 'analytics/analytics_view.dart';
 import 'listen/listen_overlay.dart';
 import 'player/mini_player.dart';
+import 'player/mobile_player_sheet.dart';
+import 'widgets/track_cover_image.dart';
 import 'player/video_player_view.dart';
 import 'player/lyrics_view.dart';
 import 'theme.dart';
@@ -362,6 +365,254 @@ class _AppShellState extends State<AppShell> {
     );
   }
 
+  // ── Apple Music-style unified bottom bar for desktop/tablet ──
+  Widget _buildDesktopBottomBar(BuildContext context, PlayerProvider player) {
+    final accent = Theme.of(context).colorScheme.primary;
+    final track = player.currentTrack;
+    final hasTrack = track != null;
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
+    final progressValue = hasTrack && player.duration.inMilliseconds > 0
+        ? (player.position.inMilliseconds / player.duration.inMilliseconds).clamp(0.0, 1.0)
+        : 0.0;
+    final downloadsCount = context.watch<DownloadsProvider>().activeJobsCount;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // ── Progress bar (only when track is playing) ──
+        if (hasTrack)
+          MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              onTapDown: (details) {
+                if (player.duration.inMilliseconds > 0) {
+                  final box = context.findRenderObject() as RenderBox;
+                  final percent = (details.localPosition.dx / box.size.width).clamp(0.0, 1.0);
+                  player.seek(Duration(milliseconds: (percent * player.duration.inMilliseconds).toInt()));
+                }
+              },
+              child: Container(
+                height: 3,
+                color: context.colors.border.withOpacity(0.15),
+                alignment: Alignment.centerLeft,
+                child: FractionallySizedBox(
+                  widthFactor: progressValue,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: accent,
+                      borderRadius: const BorderRadius.horizontal(right: Radius.circular(2)),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        // ── Main bar ──
+        Container(
+          height: 60 + bottomPadding,
+          padding: EdgeInsets.fromLTRB(0, 0, 0, bottomPadding),
+          decoration: BoxDecoration(
+            color: context.colors.surface,
+            border: Border(top: BorderSide(color: context.colors.border.withOpacity(0.08), width: 0.5)),
+          ),
+          child: Row(
+            children: [
+              // ── LEFT: Navigation tabs ──
+              Padding(
+                padding: const EdgeInsets.only(left: 16),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _DesktopNavTab(
+                      icon: Icons.home_rounded,
+                      label: 'Inicio',
+                      isSelected: _currentViewIndex == 0,
+                      onTap: () => setState(() => _currentViewIndex = 0),
+                    ),
+                    _DesktopNavTab(
+                      icon: Icons.library_music_rounded,
+                      label: 'Biblioteca',
+                      isSelected: _currentViewIndex == 1,
+                      onTap: () => setState(() => _currentViewIndex = 1),
+                    ),
+                    _DesktopNavTab(
+                      icon: Icons.bar_chart_rounded,
+                      label: 'Estadísticas',
+                      isSelected: _currentViewIndex == 2,
+                      onTap: () => setState(() => _currentViewIndex = 2),
+                    ),
+                    _DesktopNavTab(
+                      icon: Icons.search_rounded,
+                      label: 'Buscar',
+                      isSelected: _currentViewIndex == 3,
+                      onTap: () => setState(() => _currentViewIndex = 3),
+                    ),
+                    _DesktopNavTab(
+                      icon: Icons.download_rounded,
+                      label: 'Descargas',
+                      isSelected: _currentViewIndex == 4,
+                      onTap: () => setState(() => _currentViewIndex = 4),
+                      badgeCount: downloadsCount,
+                    ),
+                    _DesktopNavTab(
+                      icon: Icons.settings_rounded,
+                      label: 'Ajustes',
+                      isSelected: false,
+                      onTap: () => _openMobileSettings(context),
+                    ),
+                  ],
+                ),
+              ),
+
+              const Spacer(),
+
+              // ── RIGHT: Player (only when track is playing) ──
+              if (hasTrack)
+                Padding(
+                  padding: const EdgeInsets.only(right: 16),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Cover art
+                      GestureDetector(
+                        onTap: () => _openExpandedPlayer(context),
+                        child: MouseRegion(
+                          cursor: SystemMouseCursors.click,
+                          child: Container(
+                            width: 34,
+                            height: 34,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(6),
+                              color: context.colors.surfaceAlt,
+                              image: getCoverImageProvider(track.coverUrl) != null
+                                  ? DecorationImage(
+                                      image: getCoverImageProvider(track.coverUrl)!,
+                                      fit: BoxFit.cover,
+                                    )
+                                  : null,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.12),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 1),
+                                ),
+                              ],
+                            ),
+                            child: getCoverImageProvider(track.coverUrl) == null
+                                ? Icon(Icons.music_note_rounded, color: context.colors.textSecondary, size: 14)
+                                : null,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      // Track info as marquee + controls column
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Marquee banner for title - artist
+                          GestureDetector(
+                            onTap: () => _openExpandedPlayer(context),
+                            child: MouseRegion(
+                              cursor: SystemMouseCursors.click,
+                              child: SizedBox(
+                                width: 160,
+                                height: 16,
+                                child: _MarqueeText(
+                                  text: '${track.title.isNotEmpty ? track.title : track.filename}${track.artist.isNotEmpty ? '  •  ${track.artist}' : ''}',
+                                  style: TextStyle(
+                                    color: context.colors.textPrimary,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          // Compact controls row
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _BarIconBtn(icon: Icons.skip_previous_rounded, size: 17, color: context.colors.textPrimary, onTap: player.previous),
+                              GestureDetector(
+                                onTap: player.playPause,
+                                child: MouseRegion(
+                                  cursor: SystemMouseCursors.click,
+                                  child: Container(
+                                    width: 26,
+                                    height: 26,
+                                    margin: const EdgeInsets.symmetric(horizontal: 2),
+                                    decoration: BoxDecoration(shape: BoxShape.circle, color: context.colors.textPrimary),
+                                    child: Icon(
+                                      player.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                                      color: context.colors.surface,
+                                      size: 15,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              _BarIconBtn(icon: Icons.skip_next_rounded, size: 17, color: context.colors.textPrimary, onTap: player.next),
+                              const SizedBox(width: 2),
+                              _BarIconBtn(icon: Icons.stop_rounded, size: 15, color: Colors.red.shade300, onTap: player.stop),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 8),
+                      // Volume
+                      _BarIconBtn(
+                        icon: player.volume <= 0 ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                        size: 14,
+                        color: context.colors.textSecondary.withOpacity(0.5),
+                        onTap: player.toggleMute,
+                      ),
+                      SizedBox(
+                        width: 60,
+                        height: 18,
+                        child: SliderTheme(
+                          data: SliderThemeData(
+                            trackHeight: 2,
+                            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 4),
+                            overlayShape: const RoundSliderOverlayShape(overlayRadius: 7),
+                            activeTrackColor: context.colors.textSecondary.withOpacity(0.5),
+                            inactiveTrackColor: context.colors.border.withOpacity(0.2),
+                            thumbColor: context.colors.textPrimary,
+                          ),
+                          child: Slider(
+                            value: player.volume.toDouble().clamp(0.0, 100.0),
+                            max: 100,
+                            onChanged: (val) => player.setVolume(val),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _openExpandedPlayer(BuildContext context) {
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: true,
+        pageBuilder: (_, __, ___) => const MobileExpandedPlayer(),
+        transitionsBuilder: (_, anim, __, child) {
+          return SlideTransition(
+            position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
+                .animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+            child: child,
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 350),
+      ),
+    );
+  }
+
   void _openMobileSettings(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -424,26 +675,27 @@ class _AppShellState extends State<AppShell> {
       children: [
         Scaffold(
           backgroundColor: context.colors.bg,
+          extendBody: true,
           body: Column(
             children: [
               Expanded(
                 child: Row(
                   children: [
-                    // Sidebar (always in flow, animates width)
-                    if (!isMobile && !isVideoMode)
+                    // Sidebar (only for playlists panel, toggled from player bar)
+                    if (!isMobile && !isVideoMode && isSidebarOpen)
                       SidebarWidget(
                         currentIndex: _currentViewIndex,
-                        isCollapsed: !isSidebarOpen,
+                        isCollapsed: false,
                         onToggle: () => player.toggleSidebar(),
                         onNavigate: (index) =>
                             setState(() => _currentViewIndex = index),
                       ),
 
-                    // Main content (takes remaining space)
+                    // Main content (takes full remaining space)
                     Expanded(
                       child: Stack(
                         children: [
-                          // Main view
+                          // Main view — extends behind the floating nav
                           Positioned.fill(
                             child: NotificationListener<ScrollNotification>(
                               onNotification: (notification) {
@@ -455,12 +707,13 @@ class _AppShellState extends State<AppShell> {
                                     setState(() => _isBottomNavVisible = true);
                                   }
                                 }
-                                if (notification is ScrollEndNotification) {
-                                  // Show nav when scroll stops
-                                }
                                 return false;
                               },
-                              child: currentView,
+                              child: MediaQuery.removePadding(
+                                context: context,
+                                removeBottom: true,
+                                child: currentView,
+                              ),
                             ),
                           ),
 
@@ -475,22 +728,48 @@ class _AppShellState extends State<AppShell> {
                   ],
                 ),
               ),
-              // Desktop: MiniPlayer in flow
-              if (!isMobile) const MiniPlayer(),
-              // Mobile: add space for floating pill player + nav
-              if (isMobile) const SizedBox(height: 140),
+              // Desktop/Tablet: Apple Music unified bottom bar (nav + player)
+              if (!isMobile && !isVideoMode)
+                _buildDesktopBottomBar(context, player),
             ],
           ),
         ),
         const ListenOverlay(),
-        // ── Floating Mini Player Pill (Mobile only) ──────────────────
+        // ── Mobile: gradient fade at the bottom so content fades behind nav ──
+        if (isMobile)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: MediaQuery.of(context).padding.bottom + 140,
+            child: IgnorePointer(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      context.colors.bg.withOpacity(0.0),
+                      context.colors.bg.withOpacity(0.6),
+                      context.colors.bg.withOpacity(0.95),
+                      context.colors.bg,
+                    ],
+                    stops: const [0.0, 0.35, 0.7, 1.0],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        // ── Floating Mini Player Pill (Mobile only) ── ALWAYS VISIBLE ──
         if (isMobile && player.currentTrack != null && !player.isVideoMode)
           AnimatedPositioned(
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeInOut,
             left: 0,
             right: 0,
-            bottom: _isBottomNavVisible ? MediaQuery.of(context).padding.bottom + 80 : -100,
+            bottom: _isBottomNavVisible
+                ? MediaQuery.of(context).padding.bottom + 80
+                : MediaQuery.of(context).padding.bottom + 12,
             child: const MiniPlayer(),
           ),
         // ── Floating Pill Bottom Nav (Mobile only) ───────────────────
@@ -636,6 +915,177 @@ class _MobilePillNavItem extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Apple Music-style nav tab for the desktop bottom bar
+class _DesktopNavTab extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final int badgeCount;
+
+  const _DesktopNavTab({
+    required this.icon,
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+    this.badgeCount = 0,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = Theme.of(context).colorScheme.primary;
+    final color = isSelected ? accent : context.colors.textSecondary.withOpacity(0.5);
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Icon(icon, size: 20, color: color),
+                  if (badgeCount > 0)
+                    Positioned(
+                      right: -8,
+                      top: -4,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                        decoration: BoxDecoration(color: accent, borderRadius: BorderRadius.circular(6)),
+                        constraints: const BoxConstraints(minWidth: 14, minHeight: 12),
+                        child: Text('$badgeCount', style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w700), textAlign: TextAlign.center),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 2),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Minimal icon button for the player section of the bottom bar
+class _BarIconBtn extends StatelessWidget {
+  final IconData icon;
+  final double size;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _BarIconBtn({required this.icon, required this.size, required this.color, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: Padding(
+          padding: const EdgeInsets.all(4),
+          child: Icon(icon, size: size, color: color),
+        ),
+      ),
+    );
+  }
+}
+
+/// Auto-scrolling marquee text widget — scrolls when text is wider than its container
+class _MarqueeText extends StatefulWidget {
+  final String text;
+  final TextStyle style;
+
+  const _MarqueeText({required this.text, required this.style});
+
+  @override
+  State<_MarqueeText> createState() => _MarqueeTextState();
+}
+
+class _MarqueeTextState extends State<_MarqueeText> with SingleTickerProviderStateMixin {
+  late final ScrollController _scrollController;
+  Timer? _timer;
+  bool _needsScroll = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkAndStartScroll());
+  }
+
+  @override
+  void didUpdateWidget(covariant _MarqueeText oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.text != widget.text) {
+      _timer?.cancel();
+      _scrollController.jumpTo(0);
+      WidgetsBinding.instance.addPostFrameCallback((_) => _checkAndStartScroll());
+    }
+  }
+
+  void _checkAndStartScroll() {
+    if (!mounted) return;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    _needsScroll = maxScroll > 0;
+    if (_needsScroll) {
+      _startScrollLoop();
+    }
+  }
+
+  void _startScrollLoop() {
+    _timer?.cancel();
+    _timer = Timer(const Duration(seconds: 2), () {
+      if (!mounted || !_needsScroll) return;
+      _animateForward();
+    });
+  }
+
+  void _animateForward() {
+    if (!mounted) return;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final duration = Duration(milliseconds: (maxScroll * 40).toInt().clamp(2000, 8000));
+    _scrollController.animateTo(maxScroll, duration: duration, curve: Curves.linear).then((_) {
+      if (!mounted) return;
+      _timer = Timer(const Duration(seconds: 2), () {
+        if (!mounted) return;
+        _scrollController.animateTo(0, duration: const Duration(milliseconds: 800), curve: Curves.easeOut).then((_) {
+          if (mounted) _startScrollLoop();
+        });
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      controller: _scrollController,
+      scrollDirection: Axis.horizontal,
+      physics: const NeverScrollableScrollPhysics(),
+      child: Text(widget.text, style: widget.style, maxLines: 1),
     );
   }
 }
