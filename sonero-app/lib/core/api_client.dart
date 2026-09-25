@@ -1512,10 +1512,32 @@ class ApiClient {
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
+  Future<Map<String, dynamic>> getAdvancedStats() async {
+    final res = await http.get(Uri.parse('$baseUrl/api/v1/analytics/stats/advanced'));
+    _check(res);
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
   Future<Map<String, dynamic>> syncDownloads() async {
     final res = await http.post(Uri.parse('$baseUrl/api/v1/analytics/sync'));
     _check(res);
     return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  Future<void> logPlayback(String filename, double durationSeconds, bool completed) async {
+    try {
+      await http.post(
+        Uri.parse('$baseUrl/api/v1/analytics/log-by-filename'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'filename': filename,
+          'duration_watched': durationSeconds,
+          'completed': completed,
+        }),
+      );
+    } catch (_) {
+      // Silently fail — analytics should never block playback
+    }
   }
 
   // ── Authentication Endpoints ───────────────────────────────────────────────

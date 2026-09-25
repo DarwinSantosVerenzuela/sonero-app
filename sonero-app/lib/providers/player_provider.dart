@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 import 'package:media_kit/media_kit.dart' hide Track;
 import 'package:media_kit_video/media_kit_video.dart';
 import '../models/track.dart';
+import '../core/api_client.dart';
 import 'settings_provider.dart';
 import 'package:flutter/foundation.dart';
 import '../services/audio_handler.dart';
@@ -124,6 +125,24 @@ class PlayerProvider extends ChangeNotifier {
   List<Media> _originalMedias = [];
   List<Media> _medias = [];
 
+  // ── Analytics tracking ─────────────────────────────────────────────────────
+  ApiClient? _api;
+  String? _trackingFilename;
+  final Stopwatch _trackingWatch = Stopwatch();
+
+  void setApiClient(ApiClient api) => _api = api;
+
+  void _reportPrevious() {
+    if (_trackingFilename != null && _api != null && _trackingWatch.elapsedMilliseconds > 2000) {
+      final seconds = _trackingWatch.elapsed.inSeconds.toDouble();
+      final completed = _duration.inSeconds > 0 && _position.inSeconds >= (_duration.inSeconds * 0.9);
+      _api!.logPlayback(_trackingFilename!, seconds, completed);
+    }
+    _trackingWatch.reset();
+    _trackingWatch.stop();
+    _trackingFilename = null;
+  }
+
   PlayerProvider() {
     player = Player();
     videoController = VideoController(player);
@@ -138,6 +157,11 @@ class PlayerProvider extends ChangeNotifier {
 
     player.stream.playing.listen((playing) {
       _isPlaying = playing;
+      if (playing) {
+        _trackingWatch.start();
+      } else {
+        _trackingWatch.stop();
+      }
       notifyListeners();
     });
 
@@ -168,12 +192,19 @@ class PlayerProvider extends ChangeNotifier {
 
     player.stream.playlist.listen((playlist) {
       if (playlist.index >= 0 && playlist.index < _queue.length) {
+        // Report previous track's analytics
+        _reportPrevious();
+
         _currentTrack = _queue[playlist.index];
         _isVideo = _isVideoExt(_currentTrack!.filename);
         if (_isVideo) _isVideoMode = true;   // auto-open overlay for video
         if (!_isVideo) _isVideoMode = false; // auto-close overlay for audio
         _position = Duration.zero;
         _duration = Duration.zero;
+
+        // Start tracking new track
+        _trackingFilename = _currentTrack!.filename;
+        _trackingWatch.reset();
 
         if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
           try {

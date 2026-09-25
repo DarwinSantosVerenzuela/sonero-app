@@ -5,6 +5,7 @@ import 'package:sonero_app/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/playlist.dart';
+import '../../models/track.dart';
 import '../../providers/library_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/downloads_provider.dart';
@@ -585,16 +586,12 @@ class _PlaylistTileState extends State<_PlaylistTile> {
         onEnter: (_) => setState(() => _isHovered = true),
         onExit: (_) => setState(() => _isHovered = false),
         child: GestureDetector(
-          onSecondaryTapUp: (widget.onDelete != null || widget.onRename != null)
-              ? (details) => _showContextMenu(context, details.globalPosition)
-              : null,
-          onLongPress: (widget.onDelete != null || widget.onRename != null)
-              ? () async {
+          onSecondaryTapUp: (details) => _showContextMenu(context, details.globalPosition),
+          onLongPress: () async {
                   final RenderBox box = context.findRenderObject() as RenderBox;
                   final pos = box.localToGlobal(Offset.zero);
                   _showContextMenu(context, Offset(pos.dx + box.size.width / 2, pos.dy));
-                }
-              : null,
+                },
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 150),
             margin: EdgeInsets.symmetric(horizontal: widget.isCollapsed ? 12 : 12, vertical: 1),
@@ -653,6 +650,23 @@ class _PlaylistTileState extends State<_PlaylistTile> {
                               ),
                             ),
                           ),
+                        // 3-dot menu button
+                        if (_isHovered || MediaQuery.of(context).size.width < 600)
+                          GestureDetector(
+                            onTap: () {
+                              final RenderBox box = context.findRenderObject() as RenderBox;
+                              final pos = box.localToGlobal(Offset(box.size.width, box.size.height / 2));
+                              _showContextMenu(context, pos);
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.only(left: 4),
+                              child: Icon(
+                                Icons.more_vert_rounded,
+                                size: 16,
+                                color: context.colors.textSecondary.withOpacity(0.5),
+                              ),
+                            ),
+                          ),
                       ],
                     ],
                   ),
@@ -678,7 +692,17 @@ class _PlaylistTileState extends State<_PlaylistTile> {
             children: [
               Icon(Icons.image_rounded, size: 18, color: context.colors.textSecondary),
               const SizedBox(width: 10),
-              const Text('Cambiar portada'),
+              const Text('Subir imagen'),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'cover_from_track',
+          child: Row(
+            children: [
+              Icon(Icons.album_rounded, size: 18, color: context.colors.textSecondary),
+              const SizedBox(width: 10),
+              const Text('Usar portada de canción'),
             ],
           ),
         ),
@@ -710,6 +734,161 @@ class _PlaylistTileState extends State<_PlaylistTile> {
     if (action == 'rename') widget.onRename?.call();
     if (action == 'delete') widget.onDelete?.call();
     if (action == 'cover') _pickAndUploadCover(context);
+    if (action == 'cover_from_track') _showPickCoverFromTrack(context);
+  }
+
+  void _showPickCoverFromTrack(BuildContext context) {
+    final library = context.read<LibraryProvider>();
+    final settings = context.read<SettingsProvider>();
+    final playlistName = widget.playlist.name;
+
+    // Get tracks that belong to this playlist and have cover art
+    final tracksWithCover = library.tracks
+        .where((t) => t.playlist == playlistName && t.coverUrl != null && t.coverUrl!.isNotEmpty)
+        .toList();
+
+    if (tracksWithCover.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('No hay canciones con portada en esta carpeta'),
+          backgroundColor: context.colors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: context.colors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.album_rounded, color: Theme.of(context).colorScheme.primary, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text('Elegir portada', style: TextStyle(color: context.colors.textPrimary, fontSize: 16)),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: 340,
+          height: 300,
+          child: GridView.builder(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+            ),
+            itemCount: tracksWithCover.length,
+            itemBuilder: (ctx, index) {
+              final track = tracksWithCover[index];
+              final coverFullUrl = track.coverUrl!.startsWith('http')
+                  ? track.coverUrl!
+                  : '${settings.apiUrl}${track.coverUrl}';
+              return Tooltip(
+                message: '${track.title}\n${track.artist}',
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(10),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _uploadCoverFromTrackUrl(context, coverFullUrl);
+                  },
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Image.network(
+                          coverFullUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            color: context.colors.surfaceAlt,
+                            child: Icon(Icons.broken_image_rounded, color: context.colors.textSecondary),
+                          ),
+                        ),
+                        // Gradient overlay with track name
+                        Positioned(
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.bottomCenter,
+                                end: Alignment.topCenter,
+                                colors: [Colors.black87, Colors.transparent],
+                              ),
+                            ),
+                            child: Text(
+                              track.title.isNotEmpty ? track.title : track.filename,
+                              style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w600),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text('Cancelar', style: TextStyle(color: context.colors.textSecondary)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _uploadCoverFromTrackUrl(BuildContext context, String coverUrl) async {
+    try {
+      // Download the track's cover image
+      final response = await http.get(Uri.parse(coverUrl));
+      if (response.statusCode != 200) throw Exception('No se pudo obtener la imagen');
+
+      final settings = context.read<SettingsProvider>();
+      final playlistName = widget.playlist.name;
+      final uri = Uri.parse('${settings.apiUrl}/api/v1/playlists/$playlistName/cover');
+
+      final request = http.MultipartRequest('POST', uri);
+      request.files.add(http.MultipartFile.fromBytes(
+        'file',
+        response.bodyBytes,
+        filename: 'cover.jpg',
+      ));
+
+      final uploadResponse = await request.send();
+      if (uploadResponse.statusCode == 200 && mounted) {
+        context.read<LibraryProvider>().loadPlaylists(settings.api);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('✅ Portada actualizada'),
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: context.colors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _pickAndUploadCover(BuildContext context) async {

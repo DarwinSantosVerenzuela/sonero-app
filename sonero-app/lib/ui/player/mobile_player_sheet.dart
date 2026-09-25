@@ -619,8 +619,8 @@ class _MobileExpandedPlayerState extends State<MobileExpandedPlayer> with Single
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        IconButton(icon: Icon(Icons.shuffle_rounded, color: player.isShuffle ? primaryColor : context.colors.textSecondary, size: 24), onPressed: player.toggleShuffle, style: IconButton.styleFrom(backgroundColor: Colors.transparent, side: BorderSide.none, elevation: 0)),
-        IconButton(icon: Icon(Icons.skip_previous_rounded, color: context.colors.textPrimary, size: 36), onPressed: player.previous, style: IconButton.styleFrom(backgroundColor: Colors.transparent, side: BorderSide.none, elevation: 0)),
+        IconButton(icon: Icon(Icons.shuffle_rounded, color: player.isShuffle ? primaryColor : Colors.white70, size: 24), onPressed: player.toggleShuffle, style: IconButton.styleFrom(backgroundColor: Colors.transparent, side: BorderSide.none, elevation: 0)),
+        IconButton(icon: Icon(Icons.skip_previous_rounded, color: Colors.white, size: 36), onPressed: player.previous, style: IconButton.styleFrom(backgroundColor: Colors.transparent, side: BorderSide.none, elevation: 0)),
         GestureDetector(
           onTap: player.playPause,
           child: Container(
@@ -633,8 +633,8 @@ class _MobileExpandedPlayerState extends State<MobileExpandedPlayer> with Single
             child: Icon(player.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded, color: Colors.white, size: 36),
           ),
         ),
-        IconButton(icon: Icon(Icons.skip_next_rounded, color: context.colors.textPrimary, size: 36), onPressed: player.next, style: IconButton.styleFrom(backgroundColor: Colors.transparent, side: BorderSide.none, elevation: 0)),
-        IconButton(icon: Icon(player.repeatMode == PlaylistMode.single ? Icons.repeat_one_rounded : Icons.repeat_rounded, color: player.repeatMode != PlaylistMode.none ? primaryColor : context.colors.textSecondary, size: 24), onPressed: player.toggleRepeat, style: IconButton.styleFrom(backgroundColor: Colors.transparent, side: BorderSide.none, elevation: 0)),
+        IconButton(icon: Icon(Icons.skip_next_rounded, color: Colors.white, size: 36), onPressed: player.next, style: IconButton.styleFrom(backgroundColor: Colors.transparent, side: BorderSide.none, elevation: 0)),
+        IconButton(icon: Icon(player.repeatMode == PlaylistMode.single ? Icons.repeat_one_rounded : Icons.repeat_rounded, color: player.repeatMode != PlaylistMode.none ? primaryColor : Colors.white70, size: 24), onPressed: player.toggleRepeat, style: IconButton.styleFrom(backgroundColor: Colors.transparent, side: BorderSide.none, elevation: 0)),
       ],
     );
   }

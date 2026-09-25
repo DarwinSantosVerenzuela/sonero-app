@@ -422,7 +422,7 @@ class _AppShellState extends State<AppShell> {
               // ── LEFT: Navigation tabs (always evenly spaced in their section) ──
               if (hasTrack)
                 SizedBox(
-                  width: MediaQuery.of(context).size.width * 0.38,
+                  width: MediaQuery.of(context).size.width * 0.60,
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: _buildNavTabs(context, downloadsCount),

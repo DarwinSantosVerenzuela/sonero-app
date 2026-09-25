@@ -50,6 +50,7 @@ class _ShazamAppState extends State<ShazamApp> with TrayListener, WindowListener
   Future<void> _boot() async {
     try {
       await _settings.load();
+      _player.setApiClient(_settings.api);
       _downloads.startPolling(_settings.api);
 
       // Equalizer: safe init (may fail on web)
@@ -215,11 +216,23 @@ class _ShazamAppState extends State<ShazamApp> with TrayListener, WindowListener
   @override
   Widget build(BuildContext context) {
     if (!_initialized) {
-      return const MaterialApp(
+      final accent = _settings.accentColor;
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
         home: Scaffold(
-          backgroundColor: Color(0xFF0A0A10),
+          backgroundColor: const Color(0xFF0A0A10),
           body: Center(
-            child: CircularProgressIndicator(color: Color(0xFF7B2FFF)),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 48),
+                  child: Image.asset('assets/images/logo.png', fit: BoxFit.contain),
+                ),
+                const SizedBox(height: 32),
+                SizedBox(width: 100, child: LinearProgressIndicator(color: accent, backgroundColor: accent.withOpacity(0.1), minHeight: 2)),
+              ],
+            ),
           ),
         ),
       );

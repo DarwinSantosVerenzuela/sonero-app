@@ -26,10 +26,9 @@
     body {
       margin: 0;
       padding: 0;
-      background: #0a0a0f;
+      background: #0a0a10;
       overflow: hidden;
     }
-
 
     .loading-screen {
       position: fixed;
@@ -38,7 +37,7 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      background: linear-gradient(145deg, #0a0a0f 0%, #12101c 50%, #0a0a0f 100%);
+      background: #0a0a10;
       z-index: 9999;
       transition: opacity 0.5s ease-out;
     }
@@ -49,69 +48,29 @@
     }
 
     .logo-container {
-      position: relative;
-      width: 80px;
-      height: 80px;
+      width: 260px;
       margin-bottom: 32px;
     }
 
-    .logo-glow {
-      position: absolute;
-      inset: -20px;
-      background: radial-gradient(circle, rgba(123, 47, 255, 0.3) 0%, transparent 70%);
-      border-radius: 50%;
-      animation: pulse-glow 2s ease-in-out infinite;
-    }
-
-    .logo-icon {
-      position: relative;
-      width: 80px;
-      height: 80px;
-      background: linear-gradient(135deg, #7B2FFF 0%, #a855f7 50%, #7B2FFF 100%);
-      border-radius: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 8px 32px rgba(123, 47, 255, 0.4);
-    }
-
-    .logo-icon svg {
-      width: 40px;
-      height: 40px;
-      fill: white;
-    }
-
-    .app-title {
-      font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      font-size: 28px;
-      font-weight: 700;
-      color: #ffffff;
-      letter-spacing: -0.5px;
-      margin-bottom: 8px;
-    }
-
-    .app-subtitle {
-      font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      font-size: 13px;
-      color: rgba(255, 255, 255, 0.4);
-      margin-bottom: 40px;
+    .logo-container img {
+      width: 100%;
+      height: auto;
+      display: block;
     }
 
     .progress-container {
-      width: 200px;
-      height: 3px;
-      background: rgba(255, 255, 255, 0.08);
-      border-radius: 2px;
+      width: 100px;
+      height: 2px;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 1px;
       overflow: hidden;
     }
 
     .progress-bar {
       height: 100%;
       width: 0%;
-      background: linear-gradient(90deg, #7B2FFF, #a855f7);
-      border-radius: 2px;
+      border-radius: 1px;
       animation: loading-progress 25s ease-out forwards;
-      box-shadow: 0 0 12px rgba(123, 47, 255, 0.5);
     }
 
     @keyframes loading-progress {
@@ -123,39 +82,40 @@
       90% { width: 85%; }
       100% { width: 95%; }
     }
-
-    @keyframes pulse-glow {
-      0%, 100% { transform: scale(1); opacity: 0.5; }
-      50% { transform: scale(1.2); opacity: 1; }
-    }
   </style>
 </head>
 <body>
   <!-- Loading screen shown while Flutter initializes -->
   <div class="loading-screen" id="loading-screen">
     <div class="logo-container">
-      <div class="logo-glow"></div>
-      <div class="logo-icon" style="background: none; box-shadow: none;">
-        <img id="splash-logo" src="favicon.png" alt="Sonero" style="width: 80px; height: 80px; border-radius: 20px;">
-      </div>
+      <img src="favicon.png" alt="Sonero">
     </div>
-    <div class="app-title">Sonero</div>
-    <div class="app-subtitle">Cargando tu experiencia musical...</div>
     <div class="progress-container">
-      <div class="progress-bar"></div>
+      <div class="progress-bar" id="progress-bar"></div>
     </div>
   </div>
 
   <script>
-    // Load custom logo from localStorage (SharedPreferences stores it as 'flutter.custom_logo_path')
+    // Apply accent color from SharedPreferences (stored as ARGB int)
     (function() {
       try {
-        var customLogo = localStorage.getItem('flutter.custom_logo_path');
-        if (customLogo && customLogo.startsWith('data:image')) {
-          var splashLogo = document.getElementById('splash-logo');
-          if (splashLogo) splashLogo.src = customLogo;
+        var raw = localStorage.getItem('flutter.accent_color');
+        var bar = document.getElementById('progress-bar');
+        if (bar) {
+          if (raw) {
+            var argb = parseInt(raw, 10);
+            var r = (argb >> 16) & 0xFF;
+            var g = (argb >> 8) & 0xFF;
+            var b = argb & 0xFF;
+            bar.style.background = 'rgb(' + r + ',' + g + ',' + b + ')';
+          } else {
+            bar.style.background = '#7B2FFF';
+          }
         }
-      } catch(e) {}
+      } catch(e) {
+        var bar = document.getElementById('progress-bar');
+        if (bar) bar.style.background = '#7B2FFF';
+      }
     })();
   </script>
 
@@ -169,32 +129,27 @@
       }
     }
 
-    // Kill Flutter's default loading bar — watch for any injected elements
+    // Kill Flutter's default loading bar
     (function() {
       function killFlutterLoader() {
-        // Flutter injects a div with a loading indicator - find and hide it
         document.querySelectorAll('body > div').forEach(function(el) {
           if (el.id === 'loading-screen') return;
-          // Check if this is a Flutter-injected loading element (not the app itself)
           var style = el.getAttribute('style') || '';
           if (style.includes('position') && style.includes('top') && !el.querySelector('flt-glass-pane') && !el.querySelector('flutter-view')) {
             el.style.display = 'none';
           }
         });
-        // Also hide any progress bar elements
         document.querySelectorAll('[role="progressbar"], .flutter-loader').forEach(function(el) {
           el.style.display = 'none';
         });
       }
 
-      // Run immediately and observe for new elements
       killFlutterLoader();
       var observer = new MutationObserver(function(mutations) {
         killFlutterLoader();
       });
       observer.observe(document.body, { childList: true, subtree: true });
 
-      // Stop observing once Flutter is ready
       window.addEventListener('flutter-first-frame', function() {
         observer.disconnect();
       });
@@ -202,19 +157,6 @@
 
     // Remove when Flutter is ready
     window.addEventListener('flutter-first-frame', removeSplash);
-
-    // After 8s show reload hint
-    setTimeout(function() {
-      const loader = document.getElementById('loading-screen');
-      if (loader) {
-        const subtitle = loader.querySelector('.app-subtitle');
-        if (subtitle) {
-          subtitle.textContent = 'Toca aquí para recargar';
-          subtitle.style.cursor = 'pointer';
-          subtitle.onclick = function() { location.reload(); };
-        }
-      }
-    }, 8000);
 
     // After 12s FORCE remove splash — NEVER stay stuck
     setTimeout(removeSplash, 12000);

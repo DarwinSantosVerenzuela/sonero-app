@@ -23,6 +23,7 @@ class EqualizerView extends StatelessWidget {
       ),
       child: Padding(
         padding: EdgeInsets.all(isMobile ? 16 : 20),
+        child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -149,6 +150,7 @@ class EqualizerView extends StatelessWidget {
               ],
             ],
           ],
+        ),
         ),
       ),
     );

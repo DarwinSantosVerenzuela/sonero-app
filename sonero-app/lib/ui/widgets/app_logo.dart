@@ -51,7 +51,7 @@ class AppLogo extends StatelessWidget {
       'assets/images/logo.png',
       width: size,
       height: size,
-      fit: BoxFit.cover,
+      fit: BoxFit.contain,
     );
   }
 }
