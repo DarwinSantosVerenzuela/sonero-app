@@ -136,7 +136,7 @@
     <div class="logo-container">
       <div class="logo-glow"></div>
       <div class="logo-icon" style="background: none; box-shadow: none;">
-        <img src="favicon.png" alt="Sonero" style="width: 80px; height: 80px; border-radius: 20px;">
+        <img id="splash-logo" src="favicon.png" alt="Sonero" style="width: 80px; height: 80px; border-radius: 20px;">
       </div>
     </div>
     <div class="app-title">Sonero</div>
@@ -145,6 +145,19 @@
       <div class="progress-bar"></div>
     </div>
   </div>
+
+  <script>
+    // Load custom logo from localStorage (SharedPreferences stores it as 'flutter.custom_logo_path')
+    (function() {
+      try {
+        var customLogo = localStorage.getItem('flutter.custom_logo_path');
+        if (customLogo && customLogo.startsWith('data:image')) {
+          var splashLogo = document.getElementById('splash-logo');
+          if (splashLogo) splashLogo.src = customLogo;
+        }
+      } catch(e) {}
+    })();
+  </script>
 
   <script>
     function removeSplash() {

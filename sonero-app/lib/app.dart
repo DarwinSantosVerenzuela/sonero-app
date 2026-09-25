@@ -19,6 +19,8 @@ import 'ui/video_download_dialog.dart';
 import 'ui/settings/folder_setup_dialog.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:sonero_app/l10n/app_localizations.dart';
+import 'ui/settings/favicon_stub.dart'
+    if (dart.library.js_interop) 'ui/settings/favicon_web.dart';
 
 class ShazamApp extends StatefulWidget {
   const ShazamApp({super.key});
@@ -97,6 +99,13 @@ class _ShazamAppState extends State<ShazamApp> with TrayListener, WindowListener
       _initialized = true;
       _needsSetup = _settings.isFirstLaunch;
     });
+
+    // Apply custom logo as favicon on web
+    if (kIsWeb && _settings.customLogoPath.isNotEmpty) {
+      try {
+        setFaviconDataUri(_settings.customLogoPath);
+      } catch (_) {}
+    }
 
     // Show folder setup dialog on first launch
     if (_needsSetup) {

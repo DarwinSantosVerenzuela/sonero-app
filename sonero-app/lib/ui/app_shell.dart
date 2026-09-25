@@ -31,6 +31,7 @@ import 'wifi_transfer/wifi_transfer_page.dart';
 import '../services/background_listen_service.dart';
 import '../providers/downloads_provider.dart';
 import 'settings/settings_page.dart' as settings_page;
+import 'widgets/app_logo.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -376,7 +377,8 @@ class _AppShellState extends State<AppShell> {
         : 0.0;
     final downloadsCount = context.watch<DownloadsProvider>().activeJobsCount;
 
-    return Column(
+    return ClipRect(
+      child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         // ── Progress bar (only when track is playing) ──
@@ -409,7 +411,7 @@ class _AppShellState extends State<AppShell> {
           ),
         // ── Main bar ──
         Container(
-          height: 60 + bottomPadding,
+          height: 56 + bottomPadding,
           padding: EdgeInsets.fromLTRB(0, 0, 0, bottomPadding),
           decoration: BoxDecoration(
             color: context.colors.surface,
@@ -417,183 +419,174 @@ class _AppShellState extends State<AppShell> {
           ),
           child: Row(
             children: [
-              // ── LEFT: Navigation tabs ──
-              Padding(
-                padding: const EdgeInsets.only(left: 16),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _DesktopNavTab(
-                      icon: Icons.home_rounded,
-                      label: 'Inicio',
-                      isSelected: _currentViewIndex == 0,
-                      onTap: () => setState(() => _currentViewIndex = 0),
-                    ),
-                    _DesktopNavTab(
-                      icon: Icons.library_music_rounded,
-                      label: 'Biblioteca',
-                      isSelected: _currentViewIndex == 1,
-                      onTap: () => setState(() => _currentViewIndex = 1),
-                    ),
-                    _DesktopNavTab(
-                      icon: Icons.bar_chart_rounded,
-                      label: 'Estadísticas',
-                      isSelected: _currentViewIndex == 2,
-                      onTap: () => setState(() => _currentViewIndex = 2),
-                    ),
-                    _DesktopNavTab(
-                      icon: Icons.search_rounded,
-                      label: 'Buscar',
-                      isSelected: _currentViewIndex == 3,
-                      onTap: () => setState(() => _currentViewIndex = 3),
-                    ),
-                    _DesktopNavTab(
-                      icon: Icons.download_rounded,
-                      label: 'Descargas',
-                      isSelected: _currentViewIndex == 4,
-                      onTap: () => setState(() => _currentViewIndex = 4),
-                      badgeCount: downloadsCount,
-                    ),
-                    _DesktopNavTab(
-                      icon: Icons.settings_rounded,
-                      label: 'Ajustes',
-                      isSelected: false,
-                      onTap: () => _openMobileSettings(context),
-                    ),
-                  ],
-                ),
-              ),
-
-              const Spacer(),
-
-              // ── RIGHT: Player (only when track is playing) ──
+              // ── LEFT: Navigation tabs (always evenly spaced in their section) ──
               if (hasTrack)
+                SizedBox(
+                  width: MediaQuery.of(context).size.width * 0.38,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: _buildNavTabs(context, downloadsCount),
+                  ),
+                )
+              else
+                Expanded(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: _buildNavTabs(context, downloadsCount),
+                  ),
+                ),
+
+              // ── DIVIDER ──
+              if (hasTrack) ...[
+                const Spacer(),
+                Container(
+                  width: 1,
+                  height: 30,
+                  margin: const EdgeInsets.only(left: 2, right: 16),
+                  color: context.colors.border.withOpacity(0.15),
+                ),
+
+                // ── RIGHT: Player section ──
                 Padding(
                   padding: const EdgeInsets.only(right: 16),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Cover art
-                      GestureDetector(
-                        onTap: () => _openExpandedPlayer(context),
-                        child: MouseRegion(
-                          cursor: SystemMouseCursors.click,
-                          child: Container(
-                            width: 34,
-                            height: 34,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(6),
-                              color: context.colors.surfaceAlt,
-                              image: getCoverImageProvider(track.coverUrl) != null
-                                  ? DecorationImage(
-                                      image: getCoverImageProvider(track.coverUrl)!,
-                                      fit: BoxFit.cover,
+                        // Cover art
+                        GestureDetector(
+                          onTap: () => _openExpandedPlayer(context),
+                          child: MouseRegion(
+                            cursor: SystemMouseCursors.click,
+                            child: Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(6),
+                                color: context.colors.surfaceAlt,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.12),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 1),
+                                  ),
+                                ],
+                              ),
+                              child: getCoverImageProvider(track!.coverUrl) != null
+                                  ? AdjustedCoverImage(
+                                      coverUrl: track.coverUrl,
+                                      width: 38,
+                                      height: 38,
+                                      borderRadius: BorderRadius.circular(6),
                                     )
-                                  : null,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.12),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 1),
-                                ),
-                              ],
+                                  : Icon(Icons.music_note_rounded, color: context.colors.textSecondary, size: 16),
                             ),
-                            child: getCoverImageProvider(track.coverUrl) == null
-                                ? Icon(Icons.music_note_rounded, color: context.colors.textSecondary, size: 14)
-                                : null,
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      // Track info as marquee + controls column
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Marquee banner for title - artist
-                          GestureDetector(
+                        const SizedBox(width: 12),
+                        // Track title marquee
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 250),
+                          child: GestureDetector(
                             onTap: () => _openExpandedPlayer(context),
                             child: MouseRegion(
                               cursor: SystemMouseCursors.click,
                               child: SizedBox(
-                                width: 160,
                                 height: 16,
                                 child: _MarqueeText(
                                   text: '${track.title.isNotEmpty ? track.title : track.filename}${track.artist.isNotEmpty ? '  •  ${track.artist}' : ''}',
                                   style: TextStyle(
                                     color: context.colors.textPrimary,
                                     fontWeight: FontWeight.w600,
-                                    fontSize: 11,
+                                    fontSize: 12,
                                   ),
                                 ),
                               ),
                             ),
                           ),
-                          const SizedBox(height: 2),
-                          // Compact controls row
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              _BarIconBtn(icon: Icons.skip_previous_rounded, size: 17, color: context.colors.textPrimary, onTap: player.previous),
-                              GestureDetector(
-                                onTap: player.playPause,
-                                child: MouseRegion(
-                                  cursor: SystemMouseCursors.click,
-                                  child: Container(
-                                    width: 26,
-                                    height: 26,
-                                    margin: const EdgeInsets.symmetric(horizontal: 2),
-                                    decoration: BoxDecoration(shape: BoxShape.circle, color: context.colors.textPrimary),
-                                    child: Icon(
-                                      player.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                                      color: context.colors.surface,
-                                      size: 15,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              _BarIconBtn(icon: Icons.skip_next_rounded, size: 17, color: context.colors.textPrimary, onTap: player.next),
-                              const SizedBox(width: 2),
-                              _BarIconBtn(icon: Icons.stop_rounded, size: 15, color: Colors.red.shade300, onTap: player.stop),
-                            ],
-                          ),
-                        ],
-                      ),
-                      const SizedBox(width: 8),
-                      // Volume
-                      _BarIconBtn(
-                        icon: player.volume <= 0 ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-                        size: 14,
-                        color: context.colors.textSecondary.withOpacity(0.5),
-                        onTap: player.toggleMute,
-                      ),
-                      SizedBox(
-                        width: 60,
-                        height: 18,
-                        child: SliderTheme(
-                          data: SliderThemeData(
-                            trackHeight: 2,
-                            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 4),
-                            overlayShape: const RoundSliderOverlayShape(overlayRadius: 7),
-                            activeTrackColor: context.colors.textSecondary.withOpacity(0.5),
-                            inactiveTrackColor: context.colors.border.withOpacity(0.2),
-                            thumbColor: context.colors.textPrimary,
-                          ),
-                          child: Slider(
-                            value: player.volume.toDouble().clamp(0.0, 100.0),
-                            max: 100,
-                            onChanged: (val) => player.setVolume(val),
+                        ),
+                        const SizedBox(width: 16),
+                        // ── Playback controls ──
+                        _BarIconBtn(icon: Icons.skip_previous_rounded, size: 20, color: context.colors.textPrimary, onTap: player.previous),
+                        const SizedBox(width: 8),
+                        _BarIconBtn(
+                          icon: player.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                          size: 24,
+                          color: context.colors.textPrimary,
+                          onTap: player.playPause,
+                        ),
+                        const SizedBox(width: 8),
+                        _BarIconBtn(icon: Icons.skip_next_rounded, size: 20, color: context.colors.textPrimary, onTap: player.next),
+                        const SizedBox(width: 12),
+                        _BarIconBtn(icon: Icons.stop_rounded, size: 16, color: Colors.red.shade300, onTap: player.stop),
+                        const SizedBox(width: 16),
+                        // ── Volume ──
+                        _BarIconBtn(
+                          icon: player.volume <= 0 ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                          size: 16,
+                          color: context.colors.textSecondary.withOpacity(0.6),
+                          onTap: player.toggleMute,
+                        ),
+                        SizedBox(
+                          width: 80,
+                          height: 18,
+                          child: SliderTheme(
+                            data: SliderThemeData(
+                              trackHeight: 2,
+                              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 4),
+                              overlayShape: const RoundSliderOverlayShape(overlayRadius: 7),
+                              activeTrackColor: context.colors.textSecondary.withOpacity(0.5),
+                              inactiveTrackColor: context.colors.border.withOpacity(0.2),
+                              thumbColor: context.colors.textPrimary,
+                            ),
+                            child: Slider(
+                              value: player.volume.toDouble().clamp(0.0, 100.0),
+                              max: 100,
+                              onChanged: (val) => player.setVolume(val),
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-            ],
+                ],
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
+  }
+  List<Widget> _buildNavTabs(BuildContext context, int downloadsCount) {
+    return [
+      _DesktopNavTab(
+        icon: Icons.home_rounded,
+        label: 'Inicio',
+        isSelected: _currentViewIndex == 0,
+        onTap: () => setState(() => _currentViewIndex = 0),
+        customIcon: context.watch<SettingsProvider>().customLogoPath.isNotEmpty
+            ? const AppLogo(size: 20, borderRadius: 4)
+            : null,
+      ),
+      _DesktopNavTab(
+        icon: Icons.library_music_rounded,
+        label: 'Biblioteca',
+        isSelected: _currentViewIndex == 1,
+        onTap: () => setState(() => _currentViewIndex = 1),
+      ),
+      _DesktopNavTab(
+        icon: Icons.bar_chart_rounded,
+        label: 'Estadísticas',
+        isSelected: _currentViewIndex == 2,
+        onTap: () => setState(() => _currentViewIndex = 2),
+        badgeCount: downloadsCount,
+      ),
+      _DesktopNavTab(
+        icon: Icons.search_rounded,
+        label: 'Buscar',
+        isSelected: _currentViewIndex == 3,
+        onTap: () => setState(() => _currentViewIndex = 3),
+      ),
+    ];
   }
 
   void _openExpandedPlayer(BuildContext context) {
@@ -640,7 +633,7 @@ class _AppShellState extends State<AppShell> {
             final queue = _prepareWifiUploadQueue(selectedTracks, settings);
             setState(() {
               _wifiFilesToSend = queue;
-              _currentViewIndex = 5;
+              _currentViewIndex = 4;
             });
           },
         );
@@ -655,9 +648,6 @@ class _AppShellState extends State<AppShell> {
         );
         break;
       case 4:
-        currentView = const DownloadsPage();
-        break;
-      case 5:
         currentView = WifiTransferPage(
           initialFilesToSend: _wifiFilesToSend,
           onClearFiles: () {
@@ -805,6 +795,9 @@ class _AppShellState extends State<AppShell> {
                     label: 'Inicio',
                     isSelected: _currentViewIndex == 0,
                     onTap: () => setState(() => _currentViewIndex = 0),
+                    customIcon: context.watch<SettingsProvider>().customLogoPath.isNotEmpty
+                        ? const AppLogo(size: 22, borderRadius: 4)
+                        : null,
                   ),
                   _MobilePillNavItem(
                     icon: Icons.library_music_rounded,
@@ -813,23 +806,17 @@ class _AppShellState extends State<AppShell> {
                     onTap: () => setState(() => _currentViewIndex = 1),
                   ),
                   _MobilePillNavItem(
+                    icon: Icons.bar_chart_rounded,
+                    label: 'Estadísticas',
+                    isSelected: _currentViewIndex == 2,
+                    onTap: () => setState(() => _currentViewIndex = 2),
+                    badgeCount: context.watch<DownloadsProvider>().activeJobsCount,
+                  ),
+                  _MobilePillNavItem(
                     icon: Icons.search_rounded,
                     label: 'Buscar',
                     isSelected: _currentViewIndex == 3,
                     onTap: () => setState(() => _currentViewIndex = 3),
-                  ),
-                  _MobilePillNavItem(
-                    icon: Icons.download_rounded,
-                    label: 'Descargas',
-                    isSelected: _currentViewIndex == 4,
-                    onTap: () => setState(() => _currentViewIndex = 4),
-                    badgeCount: context.watch<DownloadsProvider>().activeJobsCount,
-                  ),
-                  _MobilePillNavItem(
-                    icon: Icons.settings_rounded,
-                    label: 'Ajustes',
-                    isSelected: false,
-                    onTap: () => _openMobileSettings(context),
                   ),
                 ],
               ),
@@ -855,6 +842,7 @@ class _MobilePillNavItem extends StatelessWidget {
   final bool isSelected;
   final VoidCallback onTap;
   final int badgeCount;
+  final Widget? customIcon;
 
   const _MobilePillNavItem({
     required this.icon,
@@ -862,6 +850,7 @@ class _MobilePillNavItem extends StatelessWidget {
     required this.isSelected,
     required this.onTap,
     this.badgeCount = 0,
+    this.customIcon,
   });
 
   @override
@@ -878,7 +867,7 @@ class _MobilePillNavItem extends StatelessWidget {
             Stack(
               clipBehavior: Clip.none,
               children: [
-                Icon(
+                customIcon ?? Icon(
                   icon,
                   size: 22,
                   color: isSelected ? accent : context.colors.textSecondary.withOpacity(0.6),
@@ -926,6 +915,7 @@ class _DesktopNavTab extends StatelessWidget {
   final bool isSelected;
   final VoidCallback onTap;
   final int badgeCount;
+  final Widget? customIcon;
 
   const _DesktopNavTab({
     required this.icon,
@@ -933,6 +923,7 @@ class _DesktopNavTab extends StatelessWidget {
     required this.isSelected,
     required this.onTap,
     this.badgeCount = 0,
+    this.customIcon,
   });
 
   @override
@@ -952,7 +943,7 @@ class _DesktopNavTab extends StatelessWidget {
               Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  Icon(icon, size: 20, color: color),
+                  customIcon ?? Icon(icon, size: 20, color: color),
                   if (badgeCount > 0)
                     Positioned(
                       right: -8,

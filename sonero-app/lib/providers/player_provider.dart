@@ -87,6 +87,29 @@ class PlayerProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ── Cover art adjustment (zoom & pan) ─────────────────────────────────────
+  double _coverScale = 1.0;
+  double get coverScale => _coverScale;
+
+  double _coverOffsetX = 0.0;
+  double get coverOffsetX => _coverOffsetX;
+
+  double _coverOffsetY = 0.0;
+  double get coverOffsetY => _coverOffsetY;
+
+  void setCoverAdjustment({required double scale, required double offsetX, required double offsetY}) {
+    _coverScale = scale;
+    _coverOffsetX = offsetX;
+    _coverOffsetY = offsetY;
+    notifyListeners();
+  }
+
+  void resetCoverAdjustment() {
+    _coverScale = 1.0;
+    _coverOffsetX = 0.0;
+    _coverOffsetY = 0.0;
+  }
+
   // ── Shuffle / Repeat ──────────────────────────────────────────────────────
   bool _isShuffle = false;
   bool get isShuffle => _isShuffle;
@@ -162,88 +185,132 @@ class PlayerProvider extends ChangeNotifier {
     });
   }
 
+  // ── Guard against concurrent playTrack calls ────────────────────────────
+  bool _isLoadingTrack = false;
+  bool get isLoadingTrack => _isLoadingTrack;
+
+  /// Cancellation token: each playTrack call increments this.
+  /// If by the time we reach player.open() the token has changed,
+  /// it means a newer playTrack was called and we must abort.
+  int _playToken = 0;
+
   Future<void> playTrack(Track track, List<Track> queue, SettingsProvider settings) async {
-    final List<Track> resolvedTracks = [];
-    final List<Media> resolvedMedias = [];
-    
-    for (var t in queue) {
-      String uri = t.filename;
-      if (!uri.startsWith('http')) {
-        if (kIsWeb) {
-          // On web, stream from the backend API
-          final baseUrl = settings.api.baseUrl;
-          if (_isVideoExt(t.filename)) {
-            final cleanFilename = t.filename.startsWith('videos/')
-                ? t.filename.substring(7)
-                : t.filename;
-            uri = '$baseUrl/api/v1/downloads/videos/${Uri.encodeComponent(cleanFilename)}';
-          } else {
-            uri = '$baseUrl/api/v1/downloads/${Uri.encodeComponent(t.filename)}';
-          }
-        } else {
-          if (!p.isAbsolute(uri)) {
+    // Increment token — any previous in-flight playTrack is now stale
+    final myToken = ++_playToken;
+
+    // Immediately silence any current playback
+    try {
+      await player.pause();
+      await player.stop();
+    } catch (_) {}
+
+    _isLoadingTrack = true;
+    notifyListeners();
+
+    try {
+      final List<Track> resolvedTracks = [];
+      final List<Media> resolvedMedias = [];
+      
+      for (var t in queue) {
+        // Abort if a newer playTrack has been called
+        if (_playToken != myToken) return;
+
+        String uri = t.filename;
+        if (!uri.startsWith('http')) {
+          if (kIsWeb) {
+            // On web, stream from the backend API
+            final baseUrl = settings.api.baseUrl;
             if (_isVideoExt(t.filename)) {
               final cleanFilename = t.filename.startsWith('videos/')
                   ? t.filename.substring(7)
                   : t.filename;
-              uri = p.join(settings.videoFolder, cleanFilename);
-            } else if (t.playlist.isNotEmpty) {
-              uri = p.join(settings.musicFolder, t.playlist, t.filename);
+              uri = '$baseUrl/api/v1/downloads/videos/${Uri.encodeComponent(cleanFilename)}';
             } else {
-              uri = p.join(settings.musicFolder, t.filename);
+              uri = '$baseUrl/api/v1/downloads/${Uri.encodeComponent(t.filename)}';
+            }
+          } else {
+            if (!p.isAbsolute(uri)) {
+              if (_isVideoExt(t.filename)) {
+                final cleanFilename = t.filename.startsWith('videos/')
+                    ? t.filename.substring(7)
+                    : t.filename;
+                uri = p.join(settings.videoFolder, cleanFilename);
+              } else if (t.playlist.isNotEmpty) {
+                uri = p.join(settings.musicFolder, t.playlist, t.filename);
+              } else {
+                uri = p.join(settings.musicFolder, t.filename);
+              }
+            }
+            uri = p.normalize(uri);
+            if (t == track && !File(uri).existsSync()) {
+              debugPrint('File does not exist: $uri');
+              throw Exception(
+                  'El archivo no existe en el disco: $uri\nVerifica tu "Directorio de Música" en Ajustes.');
             }
           }
-          uri = p.normalize(uri);
-          if (t == track && !File(uri).existsSync()) {
-            debugPrint('File does not exist: $uri');
-            throw Exception(
-                'El archivo no existe en el disco: $uri\nVerifica tu "Directorio de Música" en Ajustes.');
-          }
         }
+        resolvedTracks.add(t);
+        resolvedMedias.add(Media(uri));
       }
-      resolvedTracks.add(t);
-      resolvedMedias.add(Media(uri));
-    }
 
-    _originalQueue = List<Track>.from(resolvedTracks);
-    _originalMedias = List<Media>.from(resolvedMedias);
+      // Abort if stale
+      if (_playToken != myToken) return;
 
-    int startIndex = resolvedTracks.indexOf(track);
-    if (startIndex == -1) startIndex = 0;
+      _originalQueue = List<Track>.from(resolvedTracks);
+      _originalMedias = List<Media>.from(resolvedMedias);
 
-    if (_isShuffle) {
-      final indices = List<int>.generate(resolvedTracks.length, (i) => i)..remove(startIndex);
-      indices.shuffle();
-      final playIndices = [startIndex, ...indices];
-      
-      _queue = playIndices.map((i) => _originalQueue[i]).toList();
-      _medias = playIndices.map((i) => _originalMedias[i]).toList();
-      startIndex = 0;
-    } else {
-      _queue = List<Track>.from(_originalQueue);
-      _medias = List<Media>.from(_originalMedias);
-    }
+      int startIndex = resolvedTracks.indexOf(track);
+      if (startIndex == -1) startIndex = 0;
 
-    _currentTrack = track;
-    _isVideo = _isVideoExt(track.filename);
-    if (_isVideo) _isVideoMode = true; // auto-open video overlay
-    _position = Duration.zero;
-    _duration = Duration.zero;
-    notifyListeners();
+      if (_isShuffle) {
+        final indices = List<int>.generate(resolvedTracks.length, (i) => i)..remove(startIndex);
+        indices.shuffle();
+        final playIndices = [startIndex, ...indices];
+        
+        _queue = playIndices.map((i) => _originalQueue[i]).toList();
+        _medias = playIndices.map((i) => _originalMedias[i]).toList();
+        startIndex = 0;
+      } else {
+        _queue = List<Track>.from(_originalQueue);
+        _medias = List<Media>.from(_originalMedias);
+      }
 
-    try {
+      _currentTrack = track;
+      resetCoverAdjustment(); // Reset zoom/pan for new track
+      _isVideo = _isVideoExt(track.filename);
+      if (_isVideo) _isVideoMode = true; // auto-open video overlay
+      _position = Duration.zero;
+      _duration = Duration.zero;
+      notifyListeners();
+
+      // Final check before the heavy operation
+      if (_playToken != myToken) return;
+
+      // Force stop right before open to ensure the underlying media element is cleared
+      try { await player.stop(); } catch (_) {}
+
       debugPrint('Attempting to play playlist, starting at: $startIndex');
+      // player.open() already starts playback by default — do NOT call player.play() after
       await player.open(Playlist(_medias, index: startIndex));
-      await player.setPlaylistMode(_repeatMode);
-      await player.setShuffle(false);
-      await player.play();
+      
+      // Only set modes if we're still the current playback
+      if (_playToken == myToken) {
+        await player.setPlaylistMode(_repeatMode);
+        await player.setShuffle(false);
+      }
     } catch (e) {
       debugPrint('Error playing media: $e');
-      throw Exception('No se pudo reproducir: $e');
+      if (_playToken == myToken) rethrow;
+    } finally {
+      if (_playToken == myToken) {
+        _isLoadingTrack = false;
+        notifyListeners();
+      }
     }
   }
 
   void playPause() {
+    if (_isLoadingTrack) return; // Don't toggle while a track is loading
     if (player.state.playing) {
       player.pause();
     } else {
@@ -261,11 +328,18 @@ class PlayerProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void next() => player.next();
+  void next() {
+    if (_isLoadingTrack) return;
+    player.next();
+  }
 
-  void previous() => player.previous();
+  void previous() {
+    if (_isLoadingTrack) return;
+    player.previous();
+  }
 
   void toggleShuffle() {
+    if (_isLoadingTrack) return;
     _isShuffle = !_isShuffle;
     
     if (_currentTrack != null && _queue.isNotEmpty && _originalQueue.isNotEmpty) {
@@ -321,6 +395,7 @@ class PlayerProvider extends ChangeNotifier {
     player.stop();
     _currentTrack = null;
     _isVideoMode = false;
+    _isLoadingTrack = false; // Reset loading flag to prevent stuck state
     notifyListeners();
   }
 

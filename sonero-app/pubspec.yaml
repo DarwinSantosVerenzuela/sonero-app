@@ -66,6 +66,7 @@ dependencies:
   audio_service: ^0.18.12
   flutter_local_notifications: ^17.0.0
   coverflow_carousel: ^2.1.0
+  web: ^1.1.1
 
 dev_dependencies:
   flutter_test:

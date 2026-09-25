@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import '../../providers/settings_provider.dart';
 import '../theme.dart';
@@ -55,93 +57,135 @@ class _FolderSetupDialogState extends State<FolderSetupDialog>
     super.dispose();
   }
 
-  Future<void> _pickFolder({required bool isMusic}) async {
-    if (kIsWeb) {
-      // On web, show a text input dialog for the path
-      final controller = TextEditingController(
-        text: isMusic ? _musicPath : _videoPath,
+  /// Calls the backend to open the native OS folder picker dialog.
+  /// Returns the selected path or null if cancelled/failed.
+  Future<String?> _pickFolderViaBackend({required bool isMusic}) async {
+    final title = isMusic
+        ? 'Selecciona la carpeta para guardar música'
+        : 'Selecciona la carpeta para guardar videos';
+    try {
+      final uri = Uri.parse(
+        'http://127.0.0.1:8000/api/v1/settings/pick-folder?title=${Uri.encodeComponent(title)}',
       );
-      final result = await showDialog<String>(
-        context: context,
-        builder: (ctx) {
-          final accent = Theme.of(ctx).colorScheme.primary;
-          return AlertDialog(
-            backgroundColor: context.colors.surface,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: Row(
-              children: [
-                Icon(isMusic ? Icons.music_note_rounded : Icons.videocam_rounded, color: accent, size: 20),
-                const SizedBox(width: 10),
-                Text(
-                  isMusic ? 'Carpeta de Música' : 'Carpeta de Videos',
-                  style: TextStyle(color: context.colors.textPrimary, fontSize: 16),
-                ),
-              ],
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Escribe la ruta completa de la carpeta:',
-                  style: TextStyle(color: context.colors.textSecondary, fontSize: 13),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: controller,
-                  autofocus: true,
-                  style: TextStyle(color: context.colors.textPrimary, fontSize: 14),
-                  decoration: InputDecoration(
-                    hintText: isMusic
-                        ? r'Ej: C:\Users\tu_usuario\Music\Sonero'
-                        : r'Ej: C:\Users\tu_usuario\Videos\Sonero',
-                    hintStyle: TextStyle(color: context.colors.textSecondary.withOpacity(0.4), fontSize: 13),
-                    filled: true,
-                    fillColor: context.colors.bg,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(color: context.colors.border.withOpacity(0.2)),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(color: context.colors.border.withOpacity(0.2)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(color: accent, width: 1.5),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    prefixIcon: Icon(Icons.folder_rounded, color: accent.withOpacity(0.5), size: 20),
-                  ),
-                  onSubmitted: (val) => Navigator.of(ctx).pop(val),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: Text('Cancelar', style: TextStyle(color: context.colors.textSecondary)),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.of(ctx).pop(controller.text),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: accent,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  elevation: 0,
-                ),
-                child: const Text('Confirmar'),
+      final response = await http.get(uri).timeout(const Duration(seconds: 120));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final path = data['path'] as String?;
+        if (path != null && path.isNotEmpty) {
+          return path;
+        }
+      }
+    } catch (_) {
+      // Backend unreachable — fall through to manual input
+    }
+    return null;
+  }
+
+  /// Fallback: shows a text input dialog for manually typing the path.
+  Future<String?> _showManualPathDialog({required bool isMusic}) async {
+    final controller = TextEditingController(
+      text: isMusic ? _musicPath : _videoPath,
+    );
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) {
+        final accent = Theme.of(ctx).colorScheme.primary;
+        return AlertDialog(
+          backgroundColor: context.colors.surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Icon(isMusic ? Icons.music_note_rounded : Icons.videocam_rounded, color: accent, size: 20),
+              const SizedBox(width: 10),
+              Text(
+                isMusic ? 'Carpeta de Música' : 'Carpeta de Videos',
+                style: TextStyle(color: context.colors.textPrimary, fontSize: 16),
               ),
             ],
-          );
-        },
-      );
-      if (result != null && result.isNotEmpty) {
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Escribe la ruta completa de la carpeta:',
+                style: TextStyle(color: context.colors.textSecondary, fontSize: 13),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                autofocus: true,
+                style: TextStyle(color: context.colors.textPrimary, fontSize: 14),
+                decoration: InputDecoration(
+                  hintText: isMusic
+                      ? r'Ej: C:\Users\tu_usuario\Music\Sonero'
+                      : r'Ej: C:\Users\tu_usuario\Videos\Sonero',
+                  hintStyle: TextStyle(color: context.colors.textSecondary.withOpacity(0.4), fontSize: 13),
+                  filled: true,
+                  fillColor: context.colors.bg,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: context.colors.border.withOpacity(0.2)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: context.colors.border.withOpacity(0.2)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: accent, width: 1.5),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  prefixIcon: Icon(Icons.folder_rounded, color: accent.withOpacity(0.5), size: 20),
+                ),
+                onSubmitted: (val) => Navigator.of(ctx).pop(val),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text('Cancelar', style: TextStyle(color: context.colors.textSecondary)),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop(controller.text),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: accent,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                elevation: 0,
+              ),
+              child: const Text('Confirmar'),
+            ),
+          ],
+        );
+      },
+    );
+    return result;
+  }
+
+  Future<void> _pickFolder({required bool isMusic}) async {
+    if (kIsWeb) {
+      // On web, ask the backend to open the native OS folder picker
+      final picked = await _pickFolderViaBackend(isMusic: isMusic);
+      if (picked != null && picked.isNotEmpty) {
         setState(() {
           if (isMusic) {
-            _musicPath = result;
+            _musicPath = picked;
           } else {
-            _videoPath = result;
+            _videoPath = picked;
+          }
+        });
+        return;
+      }
+      // Fallback to manual text input if backend picker failed/cancelled
+      final manual = await _showManualPathDialog(isMusic: isMusic);
+      if (manual != null && manual.isNotEmpty) {
+        setState(() {
+          if (isMusic) {
+            _musicPath = manual;
+          } else {
+            _videoPath = manual;
           }
         });
       }
@@ -167,6 +211,11 @@ class _FolderSetupDialogState extends State<FolderSetupDialog>
     final settings = context.read<SettingsProvider>();
     if (_musicPath != null && _musicPath!.isNotEmpty) {
       await settings.setMusicFolder(_musicPath!);
+      // Auto-configure video folder as a subfolder of music if not set
+      if (_videoPath == null || _videoPath!.isEmpty) {
+        final autoVideoPath = '${_musicPath!}/videos';
+        await settings.setVideoFolder(autoVideoPath);
+      }
     }
     if (_videoPath != null && _videoPath!.isNotEmpty) {
       await settings.setVideoFolder(_videoPath!);

@@ -1,5 +1,6 @@
 import 'dart:ui' as ui;
 import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'platform_stub.dart'
     if (dart.library.io) 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -16,6 +17,8 @@ import '../../providers/library_provider.dart';
 import '../theme.dart';
 import '../../services/log_service.dart';
 import '../player/equalizer_view.dart';
+import 'favicon_stub.dart'
+    if (dart.library.js_interop) 'favicon_web.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -64,6 +67,23 @@ class _SettingsPageState extends State<SettingsPage> {
     super.dispose();
   }
   Future<String?> _showWebFolderInput(BuildContext context, String title, String currentPath) async {
+    // First, try the backend native folder picker
+    try {
+      final uri = Uri.parse(
+        'http://127.0.0.1:8000/api/v1/settings/pick-folder?title=${Uri.encodeComponent(title)}',
+      );
+      final response = await http.get(uri).timeout(const Duration(seconds: 120));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final path = data['path'] as String?;
+        if (path != null && path.isNotEmpty) {
+          return path;
+        }
+      }
+    } catch (_) {
+      // Backend unreachable — fall through to manual input
+    }
+    // Fallback: manual text input
     final controller = TextEditingController(text: currentPath);
     final accent = Theme.of(context).colorScheme.primary;
     return showDialog<String>(
@@ -218,12 +238,23 @@ class _SettingsPageState extends State<SettingsPage> {
             final dataUri = 'data:image/png;base64,$b64';
             debugPrint('Logo saved: ${dataUri.length} chars');
             await settings.setCustomLogoPath(dataUri);
+            // Update favicon on web
+            if (kIsWeb) {
+              _updateFavicon(dataUri);
+            }
           }
         }
       }
     } catch (e) {
       debugPrint('Logo pick error: $e');
     }
+  }
+
+  /// Updates the browser favicon dynamically (web only)
+  void _updateFavicon(String dataUri) {
+    try {
+      setFaviconDataUri(dataUri);
+    } catch (_) {}
   }
 
   @override
@@ -487,33 +518,85 @@ class _SettingsPageState extends State<SettingsPage> {
           // ── Idioma (row inline) ──────────────────────────────────────
           _SectionLabel('General'),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: context.colors.surface,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Column(
               children: [
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Icon(Icons.language_rounded, size: 18, color: context.colors.textSecondary),
-                    const SizedBox(width: 10),
-                    Text('Idioma', style: TextStyle(color: context.colors.textPrimary, fontSize: 13)),
+                    Row(
+                      children: [
+                        Icon(Icons.language_rounded, size: 18, color: context.colors.textSecondary),
+                        const SizedBox(width: 10),
+                        Text('Idioma', style: TextStyle(color: context.colors.textPrimary, fontSize: 13)),
+                      ],
+                    ),
+                    DropdownButton<String>(
+                      value: settings.locale,
+                      dropdownColor: context.colors.surfaceAlt,
+                      underline: const SizedBox(),
+                      items: [
+                        DropdownMenuItem(value: 'es', child: Text(AppLocalizations.of(context)!.languageSpanish)),
+                        DropdownMenuItem(value: 'en', child: Text(AppLocalizations.of(context)!.languageEnglish)),
+                        DropdownMenuItem(value: 'ja', child: Text(AppLocalizations.of(context)!.languageJapanese)),
+                      ],
+                      onChanged: (lang) {
+                        if (lang != null) settings.setLocale(lang);
+                      },
+                    ),
                   ],
                 ),
-                DropdownButton<String>(
-                  value: settings.locale,
-                  dropdownColor: context.colors.surfaceAlt,
-                  underline: const SizedBox(),
-                  items: [
-                    DropdownMenuItem(value: 'es', child: Text(AppLocalizations.of(context)!.languageSpanish)),
-                    DropdownMenuItem(value: 'en', child: Text(AppLocalizations.of(context)!.languageEnglish)),
-                    DropdownMenuItem(value: 'ja', child: Text(AppLocalizations.of(context)!.languageJapanese)),
+                Divider(height: 24, color: context.colors.border.withOpacity(0.3)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.color_lens_rounded, size: 18, color: context.colors.textSecondary),
+                        const SizedBox(width: 10),
+                        Text('Color Principal', style: TextStyle(color: context.colors.textPrimary, fontSize: 13)),
+                      ],
+                    ),
+                    InkWell(
+                      onTap: () {
+                        showDialog(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            backgroundColor: context.colors.surface,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            title: const Text('Elegir color'),
+                            content: SingleChildScrollView(
+                              child: BlockPicker(
+                                pickerColor: settings.accentColor,
+                                onColorChanged: (color) {
+                                  settings.setAccentColor(color);
+                                },
+                              ),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.of(ctx).pop(),
+                                child: Text('Cerrar', style: TextStyle(color: settings.accentColor)),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: settings.accentColor,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: context.colors.border.withOpacity(0.5), width: 1.5),
+                        ),
+                      ),
+                    ),
                   ],
-                  onChanged: (lang) {
-                    if (lang != null) settings.setLocale(lang);
-                  },
                 ),
               ],
             ),

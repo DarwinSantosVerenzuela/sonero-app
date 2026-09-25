@@ -12,6 +12,7 @@ import '../theme.dart';
 import '../widgets/track_cover_image.dart';
 import '../settings/settings_page.dart';
 import 'metadata_dialog.dart';
+import 'package:file_picker/file_picker.dart';
 
 class LibraryPage extends StatefulWidget {
   final Function(List<Track>)? onWiFiShare;
@@ -129,17 +130,19 @@ class _LibraryPageState extends State<LibraryPage>
           return TabBar(
             controller: _tabController,
             isScrollable: true,
+            tabAlignment: TabAlignment.start,
             indicatorColor: Theme.of(context).colorScheme.primary,
             labelColor: Theme.of(context).colorScheme.primary,
             unselectedLabelColor: context.colors.textSecondary,
             labelStyle: TextStyle(fontWeight: FontWeight.w600, fontSize: isMobile ? 11 : 13),
-            labelPadding: isMobile ? const EdgeInsets.symmetric(horizontal: 6) : const EdgeInsets.symmetric(horizontal: 16),
+            labelPadding: EdgeInsets.symmetric(horizontal: isMobile ? 8 : 16),
+            padding: EdgeInsets.symmetric(horizontal: isMobile ? 8 : 0),
             tabs: [
               Tab(
                 height: isMobile ? 36 : null,
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                   Icon(Icons.library_music_rounded, size: isMobile ? 14 : 16),
-                  const SizedBox(width: 4),
+                  SizedBox(width: isMobile ? 3 : 4),
                   Text('Todo (${allTracks.length})'),
                 ]),
               ),
@@ -147,7 +150,7 @@ class _LibraryPageState extends State<LibraryPage>
                 height: isMobile ? 36 : null,
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                   Icon(Icons.album_rounded, size: isMobile ? 14 : 16),
-                  const SizedBox(width: 4),
+                  SizedBox(width: isMobile ? 3 : 4),
                   Text('Álbum (${_groupByAlbum(audioTracks).length})'),
                 ]),
               ),
@@ -155,15 +158,15 @@ class _LibraryPageState extends State<LibraryPage>
                 height: isMobile ? 36 : null,
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                   Icon(Icons.queue_music_rounded, size: isMobile ? 14 : 16),
-                  const SizedBox(width: 4),
-                  Text('Lista de Reproducción'),
+                  SizedBox(width: isMobile ? 3 : 4),
+                  Text(isMobile ? 'Listas' : 'Lista de Reproducción'),
                 ]),
               ),
               Tab(
                 height: isMobile ? 36 : null,
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                   Icon(Icons.person_rounded, size: isMobile ? 14 : 16),
-                  const SizedBox(width: 4),
+                  SizedBox(width: isMobile ? 3 : 4),
                   Text('Artistas (${_groupByArtist(audioTracks).length})'),
                 ]),
               ),
@@ -171,7 +174,7 @@ class _LibraryPageState extends State<LibraryPage>
                 height: isMobile ? 36 : null,
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                   Icon(Icons.videocam_rounded, size: isMobile ? 14 : 16),
-                  const SizedBox(width: 4),
+                  SizedBox(width: isMobile ? 3 : 4),
                   Text('Videos (${videoTracks.length})'),
                 ]),
               ),
@@ -273,11 +276,44 @@ class _LibraryPageState extends State<LibraryPage>
           title: pl.name,
           subtitle: pl.name,
           icon: Icons.queue_music_rounded,
-          coverUrl: null,
+          coverUrl: pl.coverUrl,
           onTap: () {
             final settings = context.read<SettingsProvider>();
             library.selectPlaylist(settings.api, pl);
+            _tabController.animateTo(0);
           },
+          trailing: PopupMenuButton<String>(
+            icon: Icon(Icons.more_vert_rounded, color: context.colors.textSecondary.withOpacity(0.5), size: 20),
+            color: context.colors.surfaceAlt,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            onSelected: (val) async {
+              final settings = context.read<SettingsProvider>();
+              if (val == 'rename') {
+                _renamePlaylistDialog(context, library, settings, pl);
+              } else if (val == 'delete') {
+                _confirmDeletePlaylist(context, library, settings, pl);
+              } else if (val == 'image') {
+                final result = await FilePicker.pickFiles(
+                  type: FileType.image,
+                  allowMultiple: false,
+                  withData: true,
+                );
+                if (result != null && result.files.isNotEmpty && result.files.first.bytes != null) {
+                  final file = result.files.first;
+                  await settings.api.uploadPlaylistCover(pl.name, file.bytes!.toList(), file.name);
+                  if (context.mounted) {
+                    await library.loadPlaylists(settings.api);
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Imagen de "${pl.name}" actualizada'), backgroundColor: Theme.of(context).colorScheme.primary));
+                  }
+                }
+              }
+            },
+            itemBuilder: (_) => [
+              PopupMenuItem(value: 'image', child: Row(children: [Icon(Icons.image_rounded, size: 18, color: Theme.of(context).colorScheme.primary), const SizedBox(width: 10), Text(pl.coverUrl != null && pl.coverUrl!.isNotEmpty ? 'Cambiar imagen' : 'Agregar imagen')])),
+              PopupMenuItem(value: 'rename', child: Row(children: [Icon(Icons.edit_rounded, size: 18, color: context.colors.textSecondary), const SizedBox(width: 10), const Text('Renombrar')])),
+              PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red.shade300), const SizedBox(width: 10), Text('Eliminar', style: TextStyle(color: Colors.red.shade300))])),
+            ],
+          ),
         );
       },
     );
@@ -328,9 +364,11 @@ class _LibraryPageState extends State<LibraryPage>
                       final track = tracks[i];
                       return ListTile(
                         leading: track.coverUrl != null && track.coverUrl!.isNotEmpty && getCoverImageProvider(track.coverUrl) != null
-                            ? ClipRRect(
+                            ? AdjustedCoverImage(
+                                coverUrl: track.coverUrl,
+                                width: 48,
+                                height: 48,
                                 borderRadius: BorderRadius.circular(8),
-                                child: Image(image: getCoverImageProvider(track.coverUrl)!, width: 48, height: 48, fit: BoxFit.cover),
                               )
                             : Container(
                                 width: 48, height: 48,
@@ -415,11 +453,14 @@ class _LibraryPageState extends State<LibraryPage>
     List<Track> currentTracks,
   ) {
     final selectedTracks = currentTracks.where((t) => _selectedTrackFilenames.contains(t.filename)).toList();
-    
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    final player = context.watch<PlayerProvider>();
+    final bottomMargin = isMobile ? (player.currentTrack != null && !player.isVideoMode ? 160.0 : 100.0) : 12.0;
+
     return SafeArea(
       top: false,
       child: Container(
-        margin: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+        margin: EdgeInsets.fromLTRB(12, 8, 12, bottomMargin),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           color: context.colors.surfaceAlt,
@@ -772,8 +813,8 @@ class _PageHeader extends StatelessWidget {
 
     final headerText = Container(
       padding: EdgeInsets.symmetric(
-        horizontal: isMobile ? 10 : 14,
-        vertical: isMobile ? 6 : 10,
+        horizontal: isMobile ? 10 : 10,
+        vertical: isMobile ? 6 : 6,
       ),
       decoration: BoxDecoration(
         color: context.colors.surfaceAlt,
@@ -795,7 +836,7 @@ class _PageHeader extends StatelessWidget {
                   child: Text(
                     playlist.name,
                     style: TextStyle(
-                      fontSize: isMobile ? 16 : 22,
+                      fontSize: isMobile ? 14 : 15,
                       fontWeight: FontWeight.w700,
                       color: context.colors.textPrimary,
                     ),
@@ -806,7 +847,7 @@ class _PageHeader extends StatelessWidget {
                 Icon(
                   Icons.add_rounded,
                   color: context.colors.textPrimary,
-                  size: isMobile ? 18 : 24,
+                  size: isMobile ? 16 : 18,
                 ),
               ],
             ),
@@ -816,7 +857,7 @@ class _PageHeader extends StatelessWidget {
             label,
             style: TextStyle(
               color: context.colors.textSecondary,
-              fontSize: isMobile ? 11 : 13,
+              fontSize: isMobile ? 10 : 11,
             ),
           ),
         ],
@@ -1084,16 +1125,12 @@ class _PageHeader extends StatelessWidget {
     }
 
     return Padding(
-      padding: EdgeInsets.fromLTRB(isMobile ? 16 : 24, isMobile ? 12 : 20, isMobile ? 12 : 24, isMobile ? 8 : 12),
+      padding: EdgeInsets.fromLTRB(isMobile ? 16 : 24, isMobile ? 12 : 20, isMobile ? 8 : 24, isMobile ? 8 : 12),
       child: Row(
         children: [
-          Expanded(child: headerText),
-          if (isMobile)
-            actionsWidget
-          else ...[
-            const Spacer(),
-            actionsWidget,
-          ],
+          headerText,
+          const Spacer(),
+          actionsWidget,
         ],
       ),
     );
@@ -2131,11 +2168,14 @@ class _TrackCardState extends State<_TrackCard> {
                     child: ClipRRect(
                       borderRadius:
                           const BorderRadius.vertical(top: Radius.circular(12)),
-                      child: TrackCoverImage(
-                        coverUrl: track.coverUrl,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        errorWidget: _CoverPlaceholder(isVideo: _isVideo(widget.track)),
+                      child: SizedBox.expand(
+                        child: TrackCoverImage(
+                          coverUrl: track.coverUrl,
+                          width: double.infinity,
+                          height: double.infinity,
+                          fit: BoxFit.cover,
+                          errorWidget: _CoverPlaceholder(isVideo: _isVideo(widget.track)),
+                        ),
                       ),
                     ),
                   ),
@@ -2352,105 +2392,165 @@ void _showPlaylistSelectorBottomSheet(BuildContext context) {
   
   showModalBottomSheet(
     context: context,
-    backgroundColor: context.colors.bg,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-    ),
-    builder: (ctx) {
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    builder: (sheetCtx) {
       return Consumer<LibraryProvider>(
-        builder: (context, lib, child) {
+        builder: (consumerCtx, lib, child) {
+          final accent = Theme.of(consumerCtx).colorScheme.primary;
           return SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(height: 10),
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: context.colors.textSecondary.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(2),
+            child: Container(
+              margin: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+              decoration: BoxDecoration(
+                color: consumerCtx.colors.surfaceAlt,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 10),
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: consumerCtx.colors.textSecondary.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Listas de reproducción',
-                        style: TextStyle(
-                          color: context.colors.textPrimary,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                        ),
-                      ),
-                      TextButton.icon(
-                        icon: const Icon(Icons.add, size: 18),
-                        label: const Text('Nueva', style: TextStyle(fontSize: 13)),
-                        onPressed: () {
-                          Navigator.pop(ctx);
-                          _createPlaylistDialog(context, lib, settings);
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                const Divider(),
-                Flexible(
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: lib.playlists.length,
-                    itemBuilder: (context, index) {
-                      final pl = lib.playlists[index];
-                      final isSelected = lib.selected.name == pl.name;
-                      
-                      return ListTile(
-                        leading: Icon(
-                          pl.isLibrary ? Icons.library_music_rounded : Icons.playlist_play_rounded,
-                          color: isSelected ? Theme.of(context).colorScheme.primary : context.colors.textSecondary,
-                        ),
-                        title: Text(
-                          pl.name,
+                  const SizedBox(height: 16),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Listas de reproducción',
                           style: TextStyle(
-                            color: isSelected ? context.colors.textPrimary : context.colors.textSecondary,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            color: consumerCtx.colors.textPrimary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
                           ),
                         ),
-                        trailing: pl.isLibrary
-                            ? null
-                            : PopupMenuButton<String>(
-                                icon: Icon(Icons.more_vert, color: context.colors.textSecondary),
-                                color: context.colors.surfaceAlt,
-                                onSelected: (val) {
-                                  if (val == 'rename') {
-                                    _renamePlaylistDialog(context, lib, settings, pl);
-                                  } else if (val == 'delete') {
-                                    _confirmDeletePlaylist(context, lib, settings, pl);
-                                  }
-                                },
-                                itemBuilder: (context) => [
-                                  const PopupMenuItem(
-                                    value: 'rename',
-                                    child: Text('Renombrar'),
-                                  ),
-                                  const PopupMenuItem(
-                                    value: 'delete',
-                                    child: Text('Eliminar', style: TextStyle(color: Colors.red)),
-                                  ),
-                                ],
-                              ),
-                        onTap: () {
-                          lib.selectPlaylist(settings.api, pl);
-                          Navigator.pop(ctx);
-                        },
-                      );
-                    },
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.of(sheetCtx).pop();
+                            _createPlaylistDialog(context, lib, settings);
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: accent.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.add_rounded, size: 16, color: accent),
+                                const SizedBox(width: 4),
+                                Text('Nueva', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: accent)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 10),
-              ],
+                  const SizedBox(height: 12),
+                  Flexible(
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                      itemCount: lib.playlists.length,
+                      itemBuilder: (_, index) {
+                        final pl = lib.playlists[index];
+                        final isSelected = lib.selected.name == pl.name;
+
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 4),
+                          decoration: BoxDecoration(
+                            color: isSelected ? accent.withOpacity(0.1) : Colors.transparent,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: ListTile(
+                            dense: true,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 14),
+                            leading: Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                color: isSelected ? accent.withOpacity(0.2) : consumerCtx.colors.bg,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(
+                                pl.isLibrary ? Icons.library_music_rounded : Icons.playlist_play_rounded,
+                                color: isSelected ? accent : consumerCtx.colors.textSecondary,
+                                size: 20,
+                              ),
+                            ),
+                            title: Text(
+                              pl.name,
+                              style: TextStyle(
+                                color: isSelected ? consumerCtx.colors.textPrimary : consumerCtx.colors.textSecondary,
+                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                                fontSize: 15,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            subtitle: Text(
+                              pl.name,
+                              style: TextStyle(color: consumerCtx.colors.textSecondary.withOpacity(0.5), fontSize: 11),
+                            ),
+                            trailing: pl.isLibrary
+                                ? Icon(Icons.chevron_right_rounded, color: consumerCtx.colors.textSecondary.withOpacity(0.3), size: 20)
+                                : Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      PopupMenuButton<String>(
+                                        icon: Icon(Icons.more_vert_rounded, color: consumerCtx.colors.textSecondary.withOpacity(0.5), size: 20),
+                                        color: consumerCtx.colors.surfaceAlt,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                        onSelected: (val) {
+                                          if (val == 'rename') {
+                                            _renamePlaylistDialog(context, lib, settings, pl);
+                                          } else if (val == 'delete') {
+                                            _confirmDeletePlaylist(context, lib, settings, pl);
+                                          }
+                                        },
+                                        itemBuilder: (_) => [
+                                          PopupMenuItem(
+                                            value: 'rename',
+                                            child: Row(children: [
+                                              Icon(Icons.edit_rounded, size: 18, color: consumerCtx.colors.textSecondary),
+                                              const SizedBox(width: 10),
+                                              const Text('Renombrar'),
+                                            ]),
+                                          ),
+                                          PopupMenuItem(
+                                            value: 'delete',
+                                            child: Row(children: [
+                                              Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red.shade300),
+                                              const SizedBox(width: 10),
+                                              Text('Eliminar', style: TextStyle(color: Colors.red.shade300)),
+                                            ]),
+                                          ),
+                                        ],
+                                      ),
+                                      Icon(Icons.chevron_right_rounded, color: consumerCtx.colors.textSecondary.withOpacity(0.3), size: 20),
+                                    ],
+                                  ),
+                            onTap: () {
+                              lib.selectPlaylist(settings.api, pl);
+                              Navigator.of(sheetCtx).pop();
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+              ),
             ),
           );
         },
@@ -2565,6 +2665,7 @@ class _GroupTile extends StatelessWidget {
   final IconData icon;
   final String? coverUrl;
   final VoidCallback onTap;
+  final Widget? trailing;
 
   const _GroupTile({
     required this.title,
@@ -2572,6 +2673,7 @@ class _GroupTile extends StatelessWidget {
     required this.icon,
     required this.coverUrl,
     required this.onTap,
+    this.trailing,
   });
 
   @override
@@ -2579,17 +2681,22 @@ class _GroupTile extends StatelessWidget {
     final hasCover = coverUrl != null && coverUrl!.isNotEmpty && getCoverImageProvider(coverUrl) != null;
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      leading: ClipRRect(
-        borderRadius: BorderRadius.circular(10),
-        child: SizedBox(
-          width: 52, height: 52,
-          child: hasCover
-              ? Image(image: getCoverImageProvider(coverUrl)!, fit: BoxFit.cover)
-              : Container(
+      leading: SizedBox(
+        width: 52, height: 52,
+        child: hasCover
+            ? AdjustedCoverImage(
+                coverUrl: coverUrl,
+                width: 52,
+                height: 52,
+                borderRadius: BorderRadius.circular(10),
+              )
+            : Container(
+                decoration: BoxDecoration(
                   color: context.colors.surfaceAlt,
-                  child: Icon(icon, color: context.colors.textSecondary, size: 26),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-        ),
+                child: Icon(icon, color: context.colors.textSecondary, size: 26),
+              ),
       ),
       title: Text(
         title,
@@ -2601,7 +2708,7 @@ class _GroupTile extends StatelessWidget {
         subtitle,
         style: TextStyle(color: context.colors.textSecondary, fontSize: 12),
       ),
-      trailing: Icon(Icons.chevron_right_rounded, color: context.colors.textSecondary),
+      trailing: trailing ?? Icon(Icons.chevron_right_rounded, color: context.colors.textSecondary),
       onTap: onTap,
     );
   }

@@ -532,13 +532,73 @@ class _DownloadOptionsDialogState extends State<DownloadOptionsDialog> {
               Text(_errorMessage!, style: const TextStyle(color: Colors.red, fontSize: 12)),
             ],
             if (_isDownloading) ...[
-              const SizedBox(height: 16),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(value: _progress > 0 ? _progress : null, minHeight: 5),
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.15),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: _progress > 0 && _progress < 1.0
+                              ? CircularProgressIndicator(
+                                  value: _progress,
+                                  strokeWidth: 2.5,
+                                  color: Theme.of(context).colorScheme.primary,
+                                )
+                              : CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _step.replaceAll(RegExp(r'[\u{1F4E5}\u{2B07}\u{FE0F}]', unicode: true), '').trim(),
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: Theme.of(context).textTheme.bodyMedium?.color,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (_progress > 0)
+                          Text(
+                            '${(_progress * 100).toInt()}%',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: LinearProgressIndicator(
+                        value: _progress > 0 ? _progress : null,
+                        minHeight: 6,
+                        backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 6),
-              Text(_step, textAlign: TextAlign.center, style: TextStyle(fontSize: 11, color: Theme.of(context).textTheme.bodySmall?.color)),
             ],
           ],
         ),

@@ -75,7 +75,7 @@ class _MobileExpandedPlayerState extends State<MobileExpandedPlayer> with Single
                         image: DecorationImage(
                           image: getCoverImageProvider(track.coverUrl)!,
                           fit: BoxFit.cover,
-                          colorFilter: ColorFilter.mode(Colors.black.withValues(alpha: 0.35), BlendMode.darken),
+                          colorFilter: ColorFilter.mode(Colors.black.withValues(alpha: 0.25), BlendMode.darken),
                         ),
                       ),
                     ),
@@ -91,9 +91,9 @@ class _MobileExpandedPlayerState extends State<MobileExpandedPlayer> with Single
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      Colors.black.withValues(alpha: 0.15),
-                      Colors.black.withValues(alpha: 0.3),
-                      Colors.black.withValues(alpha: 0.15),
+                      Colors.black.withValues(alpha: 0.08),
+                      Colors.black.withValues(alpha: 0.18),
+                      Colors.black.withValues(alpha: 0.08),
                     ],
                     stops: const [0.0, 0.5, 1.0],
                   ),
@@ -153,54 +153,78 @@ class _MobileExpandedPlayerState extends State<MobileExpandedPlayer> with Single
                 flex: 2,
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(40, 0, 20, 24),
-                  child: Column(
-                    children: [
-                      const Spacer(),
-                      // Cover art
-                      Hero(
-                        tag: 'mobile_player_cover',
-                        child: Container(
-                          width: 320,
-                          height: 320,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(20),
-                            color: context.colors.surface,
-                            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 30, spreadRadius: 4, offset: const Offset(0, 12))],
-                            image: hasCover && getCoverImageProvider(track.coverUrl) != null
-                                ? DecorationImage(image: getCoverImageProvider(track.coverUrl)!, fit: BoxFit.cover)
-                                : null,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final availH = constraints.maxHeight;
+                      // Dynamically size cover based on available height
+                      final coverSize = (availH * 0.4).clamp(140.0, 320.0);
+                      return SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(minHeight: availH),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const SizedBox(height: 12),
+                              // Cover art
+                              Hero(
+                                tag: 'mobile_player_cover',
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: Container(
+                                    width: coverSize,
+                                    height: coverSize,
+                                    decoration: BoxDecoration(
+                                      color: context.colors.surface,
+                                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 30, spreadRadius: 4, offset: const Offset(0, 12))],
+                                    ),
+                                    child: hasCover && getCoverImageProvider(track.coverUrl) != null
+                                        ? Transform.translate(
+                                            offset: Offset(player.coverOffsetX, player.coverOffsetY),
+                                            child: Transform.scale(
+                                              scale: player.coverScale,
+                                              child: Image(
+                                                image: getCoverImageProvider(track.coverUrl)!,
+                                                fit: BoxFit.cover,
+                                                width: coverSize,
+                                                height: coverSize,
+                                              ),
+                                            ),
+                                          )
+                                        : Icon(Icons.music_note_rounded, color: context.colors.textSecondary, size: 80),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              // Title + Artist
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                child: Column(
+                                  children: [
+                                    _buildTitleMarquee(track, 24),
+                                    const SizedBox(height: 6),
+                                    _buildArtist(track, 15),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              // Seek bar
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                child: _buildSeekBar(context, player, primaryColor),
+                              ),
+                              const SizedBox(height: 8),
+                              // Playback controls
+                              _buildPlaybackControls(context, player, primaryColor),
+                              const SizedBox(height: 12),
+                              // Volume + Utilities
+                              _buildVolumeAndUtils(context, player, isMobile: false),
+                              const SizedBox(height: 12),
+                            ],
                           ),
-                          child: !hasCover || getCoverImageProvider(track.coverUrl) == null
-                              ? Icon(Icons.music_note_rounded, color: context.colors.textSecondary, size: 80)
-                              : null,
                         ),
-                      ),
-                      const SizedBox(height: 24),
-                      // Title + Artist
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Column(
-                          children: [
-                            _buildTitleMarquee(track, 24),
-                            const SizedBox(height: 6),
-                            _buildArtist(track, 15),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      // Seek bar
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: _buildSeekBar(context, player, primaryColor),
-                      ),
-                      const SizedBox(height: 12),
-                      // Playback controls
-                      _buildPlaybackControls(context, player, primaryColor),
-                      const SizedBox(height: 16),
-                      // Volume + Utilities
-                      _buildVolumeAndUtils(context, player, isMobile: false),
-                      const Spacer(),
-                    ],
+                      );
+                    },
                   ),
                 ),
               ),
@@ -373,6 +397,7 @@ class _MobileExpandedPlayerState extends State<MobileExpandedPlayer> with Single
               IconButton(
                 icon: Icon(Icons.arrow_back_rounded, color: Colors.white.withValues(alpha: 0.8), size: 22),
                 onPressed: () => setState(() => _showLyrics = false),
+                style: IconButton.styleFrom(backgroundColor: Colors.transparent, side: BorderSide.none, elevation: 0),
               ),
               const SizedBox(width: 8),
               Container(
@@ -438,53 +463,70 @@ class _MobileExpandedPlayerState extends State<MobileExpandedPlayer> with Single
         ),
 
         Expanded(
-          child: Padding(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                // Cover Art
-                Hero(
-                  tag: 'mobile_player_cover',
-                  child: Container(
-                    width: coverSize,
-                    height: coverSize,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      color: context.colors.surface,
-                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 20, spreadRadius: 2, offset: const Offset(0, 10))],
-                      image: hasCover && getCoverImageProvider(track.coverUrl) != null
-                          ? DecorationImage(image: getCoverImageProvider(track.coverUrl)!, fit: BoxFit.cover)
-                          : null,
+            physics: const BouncingScrollPhysics(),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: MediaQuery.of(context).size.height - safePadding.top - safePadding.bottom - 60,
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  // Cover Art
+                  Hero(
+                    tag: 'mobile_player_cover',
+                    child: Container(
+                      width: coverSize,
+                      height: coverSize,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        color: context.colors.surface,
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 20, spreadRadius: 2, offset: const Offset(0, 10))],
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: hasCover && getCoverImageProvider(track.coverUrl) != null
+                          ? AdjustedCoverImage(
+                              coverUrl: track.coverUrl,
+                              width: coverSize,
+                              height: coverSize,
+                              borderRadius: BorderRadius.circular(20),
+                            )
+                          : Icon(Icons.music_note_rounded, color: context.colors.textSecondary, size: 80),
                     ),
-                    child: !hasCover || getCoverImageProvider(track.coverUrl) == null
-                        ? Icon(Icons.music_note_rounded, color: context.colors.textSecondary, size: 80)
-                        : null,
                   ),
-                ),
 
-                // Title & Artist
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      _buildTitleMarquee(track, 22),
-                      const SizedBox(height: 4),
-                      _buildArtist(track, 16),
-                    ],
+                  const SizedBox(height: 16),
+
+                  // Title & Artist
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        _buildTitleMarquee(track, 22),
+                        const SizedBox(height: 4),
+                        _buildArtist(track, 16),
+                      ],
+                    ),
                   ),
-                ),
 
-                // Seek bar
-                _buildSeekBar(context, player, primaryColor),
+                  const SizedBox(height: 12),
 
-                // Playback controls
-                _buildPlaybackControls(context, player, primaryColor),
+                  // Seek bar
+                  _buildSeekBar(context, player, primaryColor),
 
-                // Volume + Utilities
-                _buildVolumeAndUtils(context, player, isMobile: true),
-              ],
+                  // Playback controls
+                  _buildPlaybackControls(context, player, primaryColor),
+
+                  const SizedBox(height: 8),
+
+                  // Volume + Utilities
+                  _buildVolumeAndUtils(context, player, isMobile: true),
+
+                  const SizedBox(height: 8),
+                ],
+              ),
             ),
           ),
         ),
@@ -497,10 +539,24 @@ class _MobileExpandedPlayerState extends State<MobileExpandedPlayer> with Single
   // ═══════════════════════════════════════════════════════════════════════════
 
   Widget _buildCircleButton(IconData icon, VoidCallback onPressed) {
-    return Container(
-      width: 34, height: 34,
-      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.75), shape: BoxShape.circle),
-      child: IconButton(icon: Icon(icon, color: Colors.black, size: 20), onPressed: onPressed, padding: EdgeInsets.zero),
+    return ClipOval(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          width: 36, height: 36,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.12),
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white.withValues(alpha: 0.25), width: 0.5),
+          ),
+          child: IconButton(
+            icon: Icon(icon, color: Colors.white, size: 20),
+            onPressed: onPressed,
+            padding: EdgeInsets.zero,
+            style: IconButton.styleFrom(backgroundColor: Colors.transparent, side: BorderSide.none, elevation: 0),
+          ),
+        ),
+      ),
     );
   }
 
@@ -563,8 +619,8 @@ class _MobileExpandedPlayerState extends State<MobileExpandedPlayer> with Single
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        IconButton(icon: Icon(Icons.shuffle_rounded, color: player.isShuffle ? primaryColor : context.colors.textSecondary, size: 24), onPressed: player.toggleShuffle),
-        IconButton(icon: Icon(Icons.skip_previous_rounded, color: context.colors.textPrimary, size: 36), onPressed: player.previous),
+        IconButton(icon: Icon(Icons.shuffle_rounded, color: player.isShuffle ? primaryColor : context.colors.textSecondary, size: 24), onPressed: player.toggleShuffle, style: IconButton.styleFrom(backgroundColor: Colors.transparent, side: BorderSide.none, elevation: 0)),
+        IconButton(icon: Icon(Icons.skip_previous_rounded, color: context.colors.textPrimary, size: 36), onPressed: player.previous, style: IconButton.styleFrom(backgroundColor: Colors.transparent, side: BorderSide.none, elevation: 0)),
         GestureDetector(
           onTap: player.playPause,
           child: Container(
@@ -577,8 +633,8 @@ class _MobileExpandedPlayerState extends State<MobileExpandedPlayer> with Single
             child: Icon(player.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded, color: Colors.white, size: 36),
           ),
         ),
-        IconButton(icon: Icon(Icons.skip_next_rounded, color: context.colors.textPrimary, size: 36), onPressed: player.next),
-        IconButton(icon: Icon(player.repeatMode == PlaylistMode.single ? Icons.repeat_one_rounded : Icons.repeat_rounded, color: player.repeatMode != PlaylistMode.none ? primaryColor : context.colors.textSecondary, size: 24), onPressed: player.toggleRepeat),
+        IconButton(icon: Icon(Icons.skip_next_rounded, color: context.colors.textPrimary, size: 36), onPressed: player.next, style: IconButton.styleFrom(backgroundColor: Colors.transparent, side: BorderSide.none, elevation: 0)),
+        IconButton(icon: Icon(player.repeatMode == PlaylistMode.single ? Icons.repeat_one_rounded : Icons.repeat_rounded, color: player.repeatMode != PlaylistMode.none ? primaryColor : context.colors.textSecondary, size: 24), onPressed: player.toggleRepeat, style: IconButton.styleFrom(backgroundColor: Colors.transparent, side: BorderSide.none, elevation: 0)),
       ],
     );
   }
@@ -797,16 +853,16 @@ class _MobileExpandedPlayerState extends State<MobileExpandedPlayer> with Single
                               spreadRadius: 0,
                             ),
                           ],
-                          image: hasCover && getCoverImageProvider(track.coverUrl) != null
-                              ? DecorationImage(
-                                  image: getCoverImageProvider(track.coverUrl)!,
-                                  fit: BoxFit.cover,
-                                )
-                              : null,
                         ),
-                        child: !hasCover || getCoverImageProvider(track.coverUrl) == null
-                            ? Icon(Icons.music_note_rounded, color: context.colors.textSecondary, size: 22)
-                            : null,
+                        clipBehavior: Clip.antiAlias,
+                        child: hasCover && getCoverImageProvider(track.coverUrl) != null
+                            ? AdjustedCoverImage(
+                                coverUrl: track.coverUrl,
+                                width: 48,
+                                height: 48,
+                                borderRadius: BorderRadius.circular(10),
+                              )
+                            : Icon(Icons.music_note_rounded, color: context.colors.textSecondary, size: 22),
                       ),
                       const SizedBox(width: 14),
                       Expanded(
@@ -986,15 +1042,12 @@ class _MobileExpandedPlayerState extends State<MobileExpandedPlayer> with Single
       final fullUrl = coverUrl.toString().startsWith('http')
           ? coverUrl.toString()
           : '${settings.apiUrl}$coverUrl';
-      return ClipRRect(
+      return AdjustedCoverImage(
+        coverUrl: coverUrl.toString(),
+        width: 56,
+        height: 56,
         borderRadius: BorderRadius.circular(8),
-        child: Image.network(
-          fullUrl,
-          width: 56,
-          height: 56,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _coverPlaceholder(context),
-        ),
+        fallback: _coverPlaceholder(context),
       );
     }
     return _coverPlaceholder(context);
@@ -1078,9 +1131,10 @@ class _MobileExpandedPlayerState extends State<MobileExpandedPlayer> with Single
       return;
     }
 
-    double scale = 1.0;
-    double offsetX = 0.0;
-    double offsetY = 0.0;
+    final adjustment = settings.getCoverAdjustment(coverUrl);
+    double scale = adjustment?.scale ?? 1.0;
+    double offsetX = adjustment?.offsetX ?? 0.0;
+    double offsetY = adjustment?.offsetY ?? 0.0;
 
     showDialog(
       context: context,
@@ -1161,7 +1215,15 @@ class _MobileExpandedPlayerState extends State<MobileExpandedPlayer> with Single
                 child: const Text('Cancelar'),
               ),
               ElevatedButton(
-                onPressed: () => Navigator.of(ctx).pop(),
+                onPressed: () {
+                  settings.setCoverAdjustment(
+                    coverUrl ?? '',
+                    scale,
+                    offsetX,
+                    offsetY,
+                  );
+                  Navigator.of(ctx).pop();
+                },
                 child: const Text('Aplicar'),
               ),
             ],

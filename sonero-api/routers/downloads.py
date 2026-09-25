@@ -20,12 +20,13 @@ router = APIRouter()
     "/downloads",
     summary="List all downloaded MP3 files",
 )
-async def list_downloads() -> dict:
+async def list_downloads(db: Session = Depends(get_db)) -> dict:
     settings.MUSIC_DIR.mkdir(exist_ok=True)
     files = []
     
-    for f in settings.MUSIC_DIR.rglob("*.mp3"):
-        if f.is_file():
+    audio_exts = {".mp3", ".m4a", ".opus", ".ogg", ".wav", ".aac", ".flac", ".wma", ".webm"}
+    for f in settings.MUSIC_DIR.rglob("*"):
+        if f.is_file() and f.suffix.lower() in audio_exts:
             files.append(f)
             
     videos_dir = settings.VIDEO_DIR
@@ -39,7 +40,19 @@ async def list_downloads() -> dict:
     downloads = []
     for f in files:
         stat = f.stat()
-        meta = read_mp3_basic_info(f) if f.suffix == ".mp3" else {}
+        meta = {}
+        if f.suffix.lower() == ".mp3":
+            meta = read_mp3_basic_info(f)
+        
+        # For non-mp3, parse artist/title from filename: "Artist - Title.ext"
+        if not meta.get("title"):
+            stem = f.stem.lstrip("- ").strip()
+            if " - " in stem:
+                parts = stem.split(" - ", 1)
+                meta["artist"] = meta.get("artist") or parts[0].strip()
+                meta["title"] = parts[1].strip()
+            else:
+                meta["title"] = stem
         
         if f.is_relative_to(settings.VIDEO_DIR) and settings.VIDEO_DIR != settings.MUSIC_DIR:
             filename = f"videos/{str(f.relative_to(settings.VIDEO_DIR)).replace(chr(92), '/')}"
@@ -51,16 +64,26 @@ async def list_downloads() -> dict:
             rel_parts = f.relative_to(settings.MUSIC_DIR).parts
             if len(rel_parts) > 1:
                 playlist_name = rel_parts[0]
+        
+        # Get cover_url: first check embedded MP3 cover, then check DB
+        cover_url = None
+        if meta.get("has_cover") and f.suffix.lower() == ".mp3":
+            cover_url = f"/api/v1/metadata/cover/{filename}"
+        else:
+            # Look up cover_url from DB (Shazam/YouTube thumbnail)
+            db_media = db.query(Media).filter(Media.filename == f.name).first()
+            if db_media and db_media.cover_url:
+                cover_url = db_media.cover_url
             
         downloads.append({
             "filename": filename,
             "size_mb": round(stat.st_size / 1024 / 1024, 2),
             "created_at": stat.st_ctime,
             "title": meta.get("title") or f.stem,
-            "artist": meta.get("artist"),
-            "album": meta.get("album"),
-            "year": meta.get("year"),
-            "cover_url": f"/api/v1/metadata/cover/{filename}" if meta.get("has_cover") and f.suffix == ".mp3" else None,
+            "artist": meta.get("artist") or "",
+            "album": meta.get("album") or "",
+            "year": meta.get("year") or "",
+            "cover_url": cover_url,
             "playlist": playlist_name,
         })
     return {"total": len(downloads), "downloads": downloads}

@@ -193,9 +193,10 @@ class _QueueCarouselViewState extends State<QueueCarouselView> {
         children: [
           // Cover image
           if (hasCover && getCoverImageProvider(track.coverUrl) != null)
-            Image(
-              image: getCoverImageProvider(track.coverUrl)!,
-              fit: BoxFit.cover,
+            AdjustedCoverImage(
+              coverUrl: track.coverUrl,
+              width: double.infinity,
+              height: double.infinity,
             )
           else
             Container(

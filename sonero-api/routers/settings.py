@@ -1,9 +1,47 @@
-from fastapi import APIRouter, File, UploadFile, HTTPException
+import asyncio
+import sys
+from fastapi import APIRouter, File, UploadFile, HTTPException, Query
 from pathlib import Path
 from config import settings
 from services.benrio_client import benrio_client
 
 router = APIRouter()
+
+
+@router.get(
+    "/settings/pick-folder",
+    summary="Open native OS folder picker dialog",
+)
+async def pick_folder(
+    title: str = Query("Selecciona una carpeta", description="Title for the dialog"),
+) -> dict:
+    """
+    Opens the native OS folder-picker dialog (Windows/macOS/Linux)
+    and returns the selected path. Returns empty string if cancelled.
+    Uses tkinter which ships with Python's standard library.
+    """
+    def _open_dialog() -> str:
+        import tkinter as tk
+        from tkinter import filedialog
+
+        root = tk.Tk()
+        root.withdraw()            # Hide the root window
+        root.attributes('-topmost', True)  # Bring dialog to front
+        root.update()              # Process events so it appears on top
+
+        folder = filedialog.askdirectory(
+            title=title,
+            mustexist=False,
+        )
+
+        root.destroy()
+        return folder or ""
+
+    # Run in a thread to avoid blocking the event loop
+    loop = asyncio.get_event_loop()
+    selected = await loop.run_in_executor(None, _open_dialog)
+
+    return {"path": selected}
 
 @router.post(
     "/settings/cookies/benrio",

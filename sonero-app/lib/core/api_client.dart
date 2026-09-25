@@ -1506,7 +1506,20 @@ class ApiClient {
     return jsonDecode(res.body) as List<dynamic>;
   }
 
+  Future<Map<String, dynamic>> getDownloadStats() async {
+    final res = await http.get(Uri.parse('$baseUrl/api/v1/analytics/stats'));
+    _check(res);
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> syncDownloads() async {
+    final res = await http.post(Uri.parse('$baseUrl/api/v1/analytics/sync'));
+    _check(res);
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
   // ── Authentication Endpoints ───────────────────────────────────────────────
+
 
   Future<Map<String, dynamic>> register(String name, String email, String password) async {
     final res = await http.post(

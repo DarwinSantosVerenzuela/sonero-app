@@ -206,43 +206,50 @@ class HomeView extends StatelessWidget {
                           offset: const Offset(0, 1),
                         )
                       ],
-                      image: item.coverUrl != null && item.coverUrl!.isNotEmpty && getCoverImageProvider(item.coverUrl) != null
-                          ? DecorationImage(
-                              image: getCoverImageProvider(item.coverUrl)!,
-                              fit: BoxFit.cover,
-                            )
-                          : null,
                     ),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        gradient: LinearGradient(
-                          begin: Alignment.bottomCenter,
-                          end: Alignment.topCenter,
-                          colors: [Colors.black87, Colors.transparent],
-                        ),
-                      ),
-                      alignment: Alignment.bottomLeft,
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            item.title.isNotEmpty ? item.title : item.filename,
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                    clipBehavior: Clip.antiAlias,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        // Cover with zoom/pan adjustment
+                        if (item.coverUrl != null && item.coverUrl!.isNotEmpty && getCoverImageProvider(item.coverUrl) != null)
+                          AdjustedCoverImage(
+                            coverUrl: item.coverUrl,
+                            width: MediaQuery.of(context).size.width,
+                            height: 300,
                           ),
-                          if (item.artist.isNotEmpty)
-                            Text(
-                              item.artist,
-                              style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                        // Gradient overlay with text
+                        Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.bottomCenter,
+                              end: Alignment.topCenter,
+                              colors: [Colors.black87, Colors.transparent],
                             ),
-                        ],
-                      ),
+                          ),
+                          alignment: Alignment.bottomLeft,
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                item.title.isNotEmpty ? item.title : item.filename,
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              if (item.artist.isNotEmpty)
+                                Text(
+                                  item.artist,
+                                  style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 );

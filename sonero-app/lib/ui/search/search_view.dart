@@ -33,6 +33,10 @@ class _SearchViewState extends State<SearchView> with SingleTickerProviderStateM
   bool _isListening = false;
   String? _listenStatus;
 
+  // Latest releases from detected artist
+  List<dynamic> _latestReleases = [];
+  String? _detectedArtist;
+
   @override
   void initState() {
     super.initState();
@@ -109,6 +113,8 @@ class _SearchViewState extends State<SearchView> with SingleTickerProviderStateM
             _onlineResults = results;
             _isSearchingOnline = false;
           });
+          // Detect dominant artist and fetch latest releases
+          _fetchLatestReleases(results, settings);
         }
       }
     } catch (e) {
@@ -120,6 +126,79 @@ class _SearchViewState extends State<SearchView> with SingleTickerProviderStateM
       }
     }
   }
+  /// Detect the most common channel from results and fetch their latest releases
+  Future<void> _fetchLatestReleases(List<dynamic> results, SettingsProvider settings) async {
+    if (results.isEmpty) {
+      setState(() {
+        _latestReleases = [];
+        _detectedArtist = null;
+      });
+      return;
+    }
+
+    // Count channel occurrences to find the dominant artist
+    final channelCounts = <String, int>{};
+    for (final r in results) {
+      final channel = (r['channel'] ?? '').toString().trim();
+      if (channel.isNotEmpty) {
+        channelCounts[channel] = (channelCounts[channel] ?? 0) + 1;
+      }
+    }
+    if (channelCounts.isEmpty) return;
+
+    // Find the most frequent channel
+    final sortedChannels = channelCounts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final topChannel = sortedChannels.first.key;
+
+    // Only fetch latest if the channel appears in at least 2 results (likely an artist search)
+    if (sortedChannels.first.value < 2) {
+      setState(() {
+        _latestReleases = [];
+        _detectedArtist = null;
+      });
+      return;
+    }
+
+    // Extract clean artist name (remove "VEVO", "Official", etc.)
+    final cleanArtist = topChannel
+        .replaceAll(RegExp(r'VEVO$', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*(Official|Music|TV|Channel)\s*$', caseSensitive: false), '')
+        .trim();
+    final searchArtist = cleanArtist.isNotEmpty ? cleanArtist : topChannel;
+
+    try {
+      // Search for the artist's recent releases (solo + collabs/features)
+      final latestResults = await settings.api.searchOnline(
+        '"$searchArtist" 2024 2025 official', limit: 15,
+      );
+      if (mounted) {
+        // Accept results that mention the artist (in title or channel) — includes collabs
+        final artistLower = searchArtist.toLowerCase();
+        final topChannelLower = topChannel.toLowerCase();
+        final filtered = latestResults.where((r) {
+          final ch = (r['channel'] ?? '').toString().toLowerCase();
+          final title = (r['title'] ?? '').toString().toLowerCase();
+          return ch.contains(artistLower) ||
+                 artistLower.contains(ch) ||
+                 ch.contains(topChannelLower) ||
+                 title.contains(artistLower);
+        }).toList();
+
+        // Remove duplicates that already appear in main results
+        final mainIds = results.map((r) => r['id']).toSet();
+        final unique = filtered.where((r) => !mainIds.contains(r['id'])).take(10).toList();
+
+        setState(() {
+          _latestReleases = unique;
+          _detectedArtist = searchArtist;
+        });
+      }
+    } catch (_) {
+      // Silently fail — latest releases is a nice-to-have
+    }
+  }
+
 
 
   List<Track> _getFilteredLocalTracks(List<Track> allTracks) {
@@ -241,12 +320,10 @@ class _SearchViewState extends State<SearchView> with SingleTickerProviderStateM
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                accent.withOpacity(0.12),
-                accent.withOpacity(0.06),
-                accent.withOpacity(0.02),
-                context.colors.bg.withOpacity(1.0),
+                accent.withOpacity(0.04),
+                context.colors.bg,
               ],
-              stops: const [0.0, 0.35, 0.7, 1.0],
+              stops: const [0.0, 0.6],
             ),
           ),
           child: Center(
@@ -433,6 +510,8 @@ class _SearchViewState extends State<SearchView> with SingleTickerProviderStateM
                           normalVideos: normalVideos,
                           shortVideos: shortVideos,
                           playlists: onlinePlaylists,
+                          latestReleases: _latestReleases,
+                          detectedArtist: _detectedArtist,
                         ),
                       ],
                     )
@@ -456,6 +535,8 @@ class _SearchViewState extends State<SearchView> with SingleTickerProviderStateM
                             normalVideos: normalVideos,
                             shortVideos: shortVideos,
                             playlists: onlinePlaylists,
+                            latestReleases: _latestReleases,
+                            detectedArtist: _detectedArtist,
                           ),
                         ),
                       ],
@@ -549,6 +630,8 @@ class _YouTubeResultsColumn extends StatelessWidget {
   final List<dynamic> normalVideos;
   final List<dynamic> shortVideos;
   final List<dynamic> playlists;
+  final List<dynamic> latestReleases;
+  final String? detectedArtist;
 
   const _YouTubeResultsColumn({
     required this.isLoading,
@@ -556,6 +639,8 @@ class _YouTubeResultsColumn extends StatelessWidget {
     required this.normalVideos,
     required this.shortVideos,
     required this.playlists,
+    this.latestReleases = const [],
+    this.detectedArtist,
   });
 
   @override
@@ -571,10 +656,22 @@ class _YouTubeResultsColumn extends StatelessWidget {
     }
 
     final l10n = AppLocalizations.of(context)!;
+    final accent = Theme.of(context).colorScheme.primary;
 
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        // ── Latest Releases carousel ──
+        if (latestReleases.isNotEmpty && detectedArtist != null) ...[
+          _LatestReleasesCarousel(
+            releases: latestReleases,
+            artist: detectedArtist!,
+          ),
+          const SizedBox(height: 20),
+          Divider(color: context.colors.border.withOpacity(0.2)),
+          const SizedBox(height: 12),
+        ],
+
         if (playlists.isNotEmpty) ...[
           Text(l10n.playlistDetected, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.colors.textPrimary)),
           const SizedBox(height: 16),
@@ -601,6 +698,330 @@ class _YouTubeResultsColumn extends StatelessWidget {
           ),
         ]
       ],
+    );
+  }
+}
+
+// ── Latest Releases Carousel with arrow navigation ──
+class _LatestReleasesCarousel extends StatefulWidget {
+  final List<dynamic> releases;
+  final String artist;
+  const _LatestReleasesCarousel({required this.releases, required this.artist});
+
+  @override
+  State<_LatestReleasesCarousel> createState() => _LatestReleasesCarouselState();
+}
+
+class _LatestReleasesCarouselState extends State<_LatestReleasesCarousel> {
+  final ScrollController _scrollCtrl = ScrollController();
+  bool _showLeftArrow = false;
+  bool _showRightArrow = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollCtrl.addListener(_updateArrows);
+  }
+
+  void _updateArrows() {
+    if (!mounted) return;
+    setState(() {
+      _showLeftArrow = _scrollCtrl.offset > 10;
+      _showRightArrow = _scrollCtrl.offset < _scrollCtrl.position.maxScrollExtent - 10;
+    });
+  }
+
+  void _scrollBy(double delta) {
+    _scrollCtrl.animateTo(
+      (_scrollCtrl.offset + delta).clamp(0, _scrollCtrl.position.maxScrollExtent),
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  @override
+  void dispose() {
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = Theme.of(context).colorScheme.primary;
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Header
+        Row(
+          children: [
+            Icon(Icons.new_releases_rounded, color: accent, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Últimos Lanzamientos · ${widget.artist}',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: context.colors.textPrimary),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            // Desktop arrow buttons
+            if (!isMobile) ...[
+              _ArrowButton(
+                icon: Icons.chevron_left_rounded,
+                visible: _showLeftArrow,
+                onTap: () => _scrollBy(-220),
+              ),
+              const SizedBox(width: 4),
+              _ArrowButton(
+                icon: Icons.chevron_right_rounded,
+                visible: _showRightArrow,
+                onTap: () => _scrollBy(220),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 12),
+        // Scrollable cards
+        SizedBox(
+          height: 185,
+          child: ListView.builder(
+            controller: _scrollCtrl,
+            scrollDirection: Axis.horizontal,
+            physics: isMobile
+                ? const BouncingScrollPhysics()
+                : const ClampingScrollPhysics(),
+            itemCount: widget.releases.length,
+            itemBuilder: (ctx, i) => _LatestReleaseCard(video: widget.releases[i]),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Small arrow button for desktop carousel navigation
+class _ArrowButton extends StatelessWidget {
+  final IconData icon;
+  final bool visible;
+  final VoidCallback onTap;
+  const _ArrowButton({required this.icon, required this.visible, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedOpacity(
+      opacity: visible ? 1.0 : 0.3,
+      duration: const Duration(milliseconds: 200),
+      child: GestureDetector(
+        onTap: visible ? onTap : null,
+        child: MouseRegion(
+          cursor: visible ? SystemMouseCursors.click : SystemMouseCursors.basic,
+          child: Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: context.colors.surfaceAlt,
+              border: Border.all(color: context.colors.border.withOpacity(0.3)),
+            ),
+            child: Icon(icon, color: context.colors.textPrimary, size: 18),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LatestReleaseCard extends StatefulWidget {
+  final dynamic video;
+  const _LatestReleaseCard({required this.video});
+
+  @override
+  State<_LatestReleaseCard> createState() => _LatestReleaseCardState();
+}
+
+class _LatestReleaseCardState extends State<_LatestReleaseCard> {
+  bool _justDownloaded = false;
+
+  bool _isAlreadyDownloaded(BuildContext context) {
+    if (_justDownloaded) return true;
+    final library = context.watch<LibraryProvider>();
+    final videoTitle = (widget.video['title'] ?? '').toString().toLowerCase();
+    return library.tracks.any((t) {
+      final trackTitle = t.title.toLowerCase();
+      final trackFilename = t.filename.toLowerCase().replaceAll('.mp3', '').replaceAll('.m4a', '');
+      return videoTitle.contains(trackTitle) ||
+             trackTitle.contains(videoTitle) ||
+             trackFilename.contains(videoTitle) ||
+             videoTitle.contains(trackFilename);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final video = widget.video;
+    final dur = (video['duration'] as num?)?.toInt();
+    final durStr = dur != null ? '${dur ~/ 60}:${(dur % 60).toString().padLeft(2, '0')}' : '';
+    final accent = Theme.of(context).colorScheme.primary;
+    final isDownloaded = _isAlreadyDownloaded(context);
+
+    return GestureDetector(
+      onTap: () async {
+        final result = await showDialog<dynamic>(
+          context: context,
+          builder: (_) => DownloadOptionsDialog(videoUrl: video['url'], title: video['title']),
+        );
+        if (result != null && context.mounted) {
+          if (result == true) {
+            setState(() => _justDownloaded = true);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.check_circle_rounded, color: Colors.white, size: 16),
+                    const SizedBox(width: 8),
+                    const Text('Descargada ✓', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                  ],
+                ),
+                backgroundColor: Colors.green.shade700,
+                behavior: SnackBarBehavior.floating,
+                margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
+          final settings = context.read<SettingsProvider>();
+          context.read<LibraryProvider>().loadTracks(settings.api);
+        }
+      },
+      child: Container(
+        width: 200,
+        margin: const EdgeInsets.only(right: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          color: isDownloaded
+              ? Colors.green.shade900.withOpacity(0.3)
+              : context.colors.surfaceAlt,
+          border: Border.all(
+            color: isDownloaded
+                ? Colors.green.shade600.withOpacity(0.5)
+                : accent.withOpacity(0.15),
+          ),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Thumbnail with badges
+            Stack(
+              children: [
+                video['thumbnail'] != null
+                    ? Image.network(
+                        video['thumbnail'],
+                        width: 200,
+                        height: 112,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          width: 200, height: 112,
+                          color: context.colors.border,
+                          child: Icon(Icons.music_video_rounded, color: context.colors.textSecondary),
+                        ),
+                      )
+                    : Container(
+                        width: 200, height: 112,
+                        color: context.colors.border,
+                        child: Icon(Icons.music_video_rounded, color: context.colors.textSecondary),
+                      ),
+                // NUEVO badge (top-left)
+                if (!isDownloaded)
+                  Positioned(
+                    top: 6,
+                    left: 6,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: accent,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        'NUEVO',
+                        style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700, letterSpacing: 0.5),
+                      ),
+                    ),
+                  ),
+                // Downloaded check badge (top-left, replaces NUEVO)
+                if (isDownloaded)
+                  Positioned(
+                    top: 6,
+                    left: 6,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade700,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.check_rounded, color: Colors.white, size: 10),
+                          SizedBox(width: 3),
+                          Text(
+                            'DESCARGADA',
+                            style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w700, letterSpacing: 0.5),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                // Duration badge (bottom-right)
+                if (durStr.isNotEmpty)
+                  Positioned(
+                    bottom: 6,
+                    right: 6,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.7),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(durStr, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w500)),
+                    ),
+                  ),
+              ],
+            ),
+            // Title + optional check icon
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        video['title'] ?? '',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: isDownloaded ? Colors.green.shade300 : context.colors.textPrimary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    if (isDownloaded) ...[
+                      const SizedBox(width: 4),
+                      Icon(Icons.check_circle_rounded, color: Colors.green.shade400, size: 16),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -767,14 +1188,38 @@ class _YouTubePlaylistResultItem extends StatelessWidget {
 }
 
 
-class _YouTubeResultItem extends StatelessWidget {
+class _YouTubeResultItem extends StatefulWidget {
   final dynamic video;
   const _YouTubeResultItem({required this.video});
 
   @override
+  State<_YouTubeResultItem> createState() => _YouTubeResultItemState();
+}
+
+class _YouTubeResultItemState extends State<_YouTubeResultItem> {
+  bool _justDownloaded = false;
+
+  bool _isAlreadyDownloaded(BuildContext context) {
+    if (_justDownloaded) return true;
+    final library = context.watch<LibraryProvider>();
+    final videoTitle = (widget.video['title'] ?? '').toString().toLowerCase();
+    return library.tracks.any((t) {
+      final trackTitle = t.title.toLowerCase();
+      final trackFilename = t.filename.toLowerCase().replaceAll('.mp3', '').replaceAll('.m4a', '');
+      // Match if title contains the track title or filename
+      return videoTitle.contains(trackTitle) || 
+             trackTitle.contains(videoTitle) ||
+             trackFilename.contains(videoTitle) ||
+             videoTitle.contains(trackFilename);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final video = widget.video;
     final dur = (video['duration'] as num?)?.toInt();
     final durStr = dur != null ? '${dur ~/ 60}:${(dur % 60).toString().padLeft(2, '0')}' : '--:--';
+    final isDownloaded = _isAlreadyDownloaded(context);
 
     return _HoverContainer(
       onTap: () => _download(context, video),
@@ -800,10 +1245,15 @@ class _YouTubeResultItem extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          IconButton(
-            icon: Icon(Icons.download_rounded, color: Theme.of(context).colorScheme.primary),
-            onPressed: () => _download(context, video),
-          ),
+          isDownloaded
+              ? Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Icon(Icons.check_circle_rounded, color: Colors.green.shade400, size: 22),
+                )
+              : IconButton(
+                  icon: Icon(Icons.download_rounded, color: Theme.of(context).colorScheme.primary),
+                  onPressed: () => _download(context, video),
+                ),
         ],
       ),
     );
@@ -817,11 +1267,40 @@ class _YouTubeResultItem extends StatelessWidget {
     if (result != null && context.mounted) {
       if (result is String) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Descarga completada con advertencias: $result'), backgroundColor: Colors.orange, duration: const Duration(seconds: 5)),
+          SnackBar(
+            content: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.warning_amber_rounded, color: Colors.white, size: 16),
+                const SizedBox(width: 8),
+                Flexible(child: Text('Advertencia: $result', style: const TextStyle(fontSize: 13))),
+              ],
+            ),
+            backgroundColor: Colors.orange.shade700,
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            duration: const Duration(seconds: 4),
+          ),
         );
       } else if (result == true) {
+        setState(() => _justDownloaded = true);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: const Text('Descarga completada'), backgroundColor: context.colors.success),
+          SnackBar(
+            content: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.check_circle_rounded, color: Colors.white, size: 16),
+                const SizedBox(width: 8),
+                const Text('Descargada ✓', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+              ],
+            ),
+            backgroundColor: Colors.green.shade700,
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            duration: const Duration(seconds: 2),
+          ),
         );
       }
       final settings = context.read<SettingsProvider>();
@@ -845,11 +1324,39 @@ class _YouTubeShortItem extends StatelessWidget {
         if (result != null && context.mounted) {
           if (result is String) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Descarga completada con advertencias: $result'), backgroundColor: Colors.orange, duration: const Duration(seconds: 5)),
+              SnackBar(
+                content: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.warning_amber_rounded, color: Colors.white, size: 16),
+                    const SizedBox(width: 8),
+                    Flexible(child: Text('Advertencia: $result', style: const TextStyle(fontSize: 13))),
+                  ],
+                ),
+                backgroundColor: Colors.orange.shade700,
+                behavior: SnackBarBehavior.floating,
+                margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                duration: const Duration(seconds: 4),
+              ),
             );
           } else if (result == true) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: const Text('Descarga completada'), backgroundColor: context.colors.success),
+              SnackBar(
+                content: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.check_circle_rounded, color: Colors.white, size: 16),
+                    const SizedBox(width: 8),
+                    const Text('Descargada ✓', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                  ],
+                ),
+                backgroundColor: Colors.green.shade700,
+                behavior: SnackBarBehavior.floating,
+                margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                duration: const Duration(seconds: 2),
+              ),
             );
           }
           final settings = context.read<SettingsProvider>();
@@ -869,9 +1376,11 @@ class _YouTubeShortItem extends StatelessWidget {
             Expanded(
               child: ClipRRect(
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                child: video['thumbnail'] != null
-                    ? Image.network(video['thumbnail'], width: double.infinity, fit: BoxFit.cover, errorBuilder: (_,__,___) => const SizedBox())
-                    : const SizedBox(),
+                child: SizedBox.expand(
+                  child: video['thumbnail'] != null
+                      ? Image.network(video['thumbnail'], width: double.infinity, height: double.infinity, fit: BoxFit.cover, errorBuilder: (_,__,___) => const SizedBox())
+                      : const SizedBox(),
+                ),
               ),
             ),
             Padding(

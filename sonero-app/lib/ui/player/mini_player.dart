@@ -77,22 +77,19 @@ class MiniPlayer extends StatelessWidget {
                           children: [
                             Hero(
                               tag: 'mobile_player_cover',
-                              child: Container(
-                                width: 40,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
+                              child: ClipOval(
+                                child: Container(
+                                  width: 40,
+                                  height: 40,
                                   color: context.colors.surfaceAlt,
-                                  image: getCoverImageProvider(track.coverUrl) != null
-                                      ? DecorationImage(
-                                          image: getCoverImageProvider(track.coverUrl)!,
-                                          fit: BoxFit.cover,
+                                  child: getCoverImageProvider(track.coverUrl) != null
+                                      ? AdjustedCoverImage(
+                                          coverUrl: track.coverUrl,
+                                          width: 40,
+                                          height: 40,
                                         )
-                                      : null,
+                                      : Icon(Icons.music_note, color: context.colors.textSecondary, size: 18),
                                 ),
-                                child: getCoverImageProvider(track.coverUrl) == null
-                                    ? Icon(Icons.music_note, color: context.colors.textSecondary, size: 18)
-                                    : null,
                               ),
                             ),
                             const SizedBox(width: 10),
@@ -133,6 +130,7 @@ class MiniPlayer extends StatelessWidget {
                       onPressed: player.previous,
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      style: IconButton.styleFrom(backgroundColor: Colors.transparent, side: BorderSide.none, elevation: 0),
                     ),
                     IconButton(
                       icon: Icon(
@@ -145,12 +143,14 @@ class MiniPlayer extends StatelessWidget {
                       onPressed: player.playPause,
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+                      style: IconButton.styleFrom(backgroundColor: Colors.transparent, side: BorderSide.none, elevation: 0),
                     ),
                     IconButton(
                       icon: Icon(Icons.skip_next_rounded, color: context.colors.textPrimary, size: 20),
                       onPressed: player.next,
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      style: IconButton.styleFrom(backgroundColor: Colors.transparent, side: BorderSide.none, elevation: 0),
                     ),
                     Container(
                       width: 1,
@@ -164,6 +164,7 @@ class MiniPlayer extends StatelessWidget {
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                       tooltip: 'Detener',
+                      style: IconButton.styleFrom(backgroundColor: Colors.transparent, side: BorderSide.none, elevation: 0),
                     ),
                   ],
                 ),
