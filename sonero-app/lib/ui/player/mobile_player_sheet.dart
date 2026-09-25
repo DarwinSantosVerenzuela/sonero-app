@@ -138,7 +138,7 @@ class _MobileExpandedPlayerState extends State<MobileExpandedPlayer> with Single
             children: [
               _buildCircleButton(Icons.keyboard_arrow_down_rounded, () => Navigator.of(context).pop()),
               const Spacer(),
-              Text('Reproduciendo', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontWeight: FontWeight.w600, fontSize: 13, letterSpacing: 1.0)),
+              Image.asset('assets/images/logo.png', height: 16, fit: BoxFit.contain),
               const Spacer(),
               _buildCircleButton(Icons.more_horiz_rounded, () => _showMoreOptions(context, player, track)),
             ],
@@ -456,7 +456,7 @@ class _MobileExpandedPlayerState extends State<MobileExpandedPlayer> with Single
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               _buildCircleButton(Icons.keyboard_arrow_down_rounded, () => Navigator.of(context).pop()),
-              Text('Reproduciendo', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontWeight: FontWeight.w600, fontSize: 13, letterSpacing: 1.0)),
+              Image.asset('assets/images/logo.png', height: 16, fit: BoxFit.contain),
               _buildCircleButton(Icons.more_horiz_rounded, () => _showMoreOptions(context, player, track)),
             ],
           ),
@@ -606,8 +606,8 @@ class _MobileExpandedPlayerState extends State<MobileExpandedPlayer> with Single
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(_formatDuration(player.position), style: TextStyle(color: context.colors.textSecondary, fontSize: 12, fontWeight: FontWeight.w500)),
-              Text(_formatDuration(player.duration), style: TextStyle(color: context.colors.textSecondary, fontSize: 12, fontWeight: FontWeight.w500)),
+              Text(_formatDuration(player.position), style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500)),
+              Text(_formatDuration(player.duration), style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500)),
             ],
           ),
         ),

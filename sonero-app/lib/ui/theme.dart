@@ -252,6 +252,7 @@ class AppTheme {
           minimumSize: const Size(0, 44),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
+            side: BorderSide(color: border.withOpacity(0.3), width: 1),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 16),
           textStyle: GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 13),

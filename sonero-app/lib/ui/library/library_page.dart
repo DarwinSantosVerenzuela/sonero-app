@@ -811,58 +811,65 @@ class _PageHeader extends StatelessWidget {
     
     final isMobile = MediaQuery.of(context).size.width < 600;
 
-    final headerText = Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: isMobile ? 10 : 10,
-        vertical: isMobile ? 6 : 6,
-      ),
-      decoration: BoxDecoration(
-        color: context.colors.surfaceAlt,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          InkWell(
-            onTap: () => _showPlaylistSelectorBottomSheet(context),
-            borderRadius: BorderRadius.circular(8),
-            hoverColor: Colors.transparent,
-            splashColor: Colors.transparent,
-            highlightColor: Colors.transparent,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Flexible(
-                  child: Text(
-                    playlist.name,
-                    style: TextStyle(
-                      fontSize: isMobile ? 14 : 15,
-                      fontWeight: FontWeight.w700,
-                      color: context.colors.textPrimary,
+    final headerText = isMobile
+      ? InkWell(
+          onTap: () => _showPlaylistSelectorBottomSheet(context),
+          borderRadius: BorderRadius.circular(8),
+          hoverColor: Colors.transparent,
+          splashColor: Colors.transparent,
+          highlightColor: Colors.transparent,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  playlist.name,
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: context.colors.textPrimary),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 3),
+              Icon(Icons.add_rounded, color: context.colors.textSecondary, size: 14),
+              const SizedBox(width: 6),
+              Text(label, style: TextStyle(color: context.colors.textSecondary, fontSize: 10)),
+            ],
+          ),
+        )
+      : Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: context.colors.surfaceAlt,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              InkWell(
+                onTap: () => _showPlaylistSelectorBottomSheet(context),
+                borderRadius: BorderRadius.circular(8),
+                hoverColor: Colors.transparent,
+                splashColor: Colors.transparent,
+                highlightColor: Colors.transparent,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        playlist.name,
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                    const SizedBox(width: 4),
+                    Icon(Icons.add_rounded, color: context.colors.textPrimary, size: 18),
+                  ],
                 ),
-                const SizedBox(width: 4),
-                Icon(
-                  Icons.add_rounded,
-                  color: context.colors.textPrimary,
-                  size: isMobile ? 16 : 18,
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 1),
+              Text(label, style: TextStyle(color: context.colors.textSecondary, fontSize: 11)),
+            ],
           ),
-          const SizedBox(height: 1),
-          Text(
-            label,
-            style: TextStyle(
-              color: context.colors.textSecondary,
-              fontSize: isMobile ? 10 : 11,
-            ),
-          ),
-        ],
-      ),
-    );
+        );
 
     // Desktop: full toolbar.  Mobile: three-dot menu.
 
@@ -1125,12 +1132,20 @@ class _PageHeader extends StatelessWidget {
     }
 
     return Padding(
-      padding: EdgeInsets.fromLTRB(isMobile ? 16 : 24, isMobile ? 12 : 20, isMobile ? 8 : 24, isMobile ? 8 : 12),
+      padding: EdgeInsets.fromLTRB(isMobile ? 16 : 24, isMobile ? 8 : 20, isMobile ? 4 : 24, isMobile ? 4 : 12),
       child: Row(
         children: [
-          headerText,
-          const Spacer(),
-          actionsWidget,
+          if (isMobile) ...[
+            Image.asset('assets/images/logo.png', height: 18, fit: BoxFit.contain),
+            const Spacer(),
+            headerText,
+            const SizedBox(width: 4),
+            actionsWidget,
+          ] else ...[
+            headerText,
+            const Spacer(),
+            actionsWidget,
+          ],
         ],
       ),
     );
